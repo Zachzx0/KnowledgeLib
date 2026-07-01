@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>UE Iris 现代化数据驱动同步系统</title>
+<style>
+  body{font-family:"Segoe UI","Microsoft YaHei",sans-serif;max-width:860px;margin:0 auto;padding:24px;background:#0a1220;color:#e0e8f8;line-height:1.8}
+  h1{color:#7ee0ff;border-bottom:1px solid #22305c;padding-bottom:12px;font-size:22px}
+  h2{color:#7ee0ff;margin:24px 0 8px 0;font-size:17px}
+  h3{color:#ffd08a;margin:16px 0 6px 0;font-size:14px}
+  p{margin:8px 0;color:#c8d3ec;font-size:14px}
+  code{background:#1c2d50;color:#5acc8a;padding:2px 6px;border-radius:3px;font-size:12px;font-family:Consolas,monospace}
+  pre{background:#101b30;padding:14px;border-radius:8px;overflow-x:auto;border:1px solid #22305c}
+  pre code{background:none;padding:0}
+  ul,ol{padding-left:24px;color:#c8d3ec}
+  li{margin:4px 0}
+  strong{color:#fff}
+  .src{color:#89b0ff;font-size:12px;font-family:Consolas,monospace;display:block;margin:4px 0}
+  .note{background:rgba(90,204,138,0.1);border-left:3px solid #5acc8a;padding:12px 16px;margin:12px 0;border-radius:0 6px 6px 0;font-size:13px}
+  .warn{background:rgba(224,85,106,0.1);border-left:3px solid #e0556a;padding:12px 16px;margin:12px 0;border-radius:0 6px 6px 0;font-size:13px}
+</style>
+</head>
+<body>
+<h1>UE Iris 现代化数据驱动同步系统</h1>
+<p>Epic 从头重写的现代同步框架。用<strong>数据驱动</strong>的 FReplicationStateDescriptor 和 ChangeMask 位图取代运行时反射，配合可插拔的 Filter/Prioritizer 和独立 DataStream 管理，实现更快更灵活的同步。</p>
+
+<h2>核心概念：数据驱动 vs 对象驱动</h2>
+<p>Iris 与原生方案的根本差异：原生围绕 <strong>UActorChannel</strong>（对象）构建，Iris 围绕 <strong>ReplicationState</strong>（数据描述）构建。这带来了架构层面的灵活性。</p>
+
+<h2>1. BeginReplication - 注册入口</h2>
+<p>游戏侧调 <code>Bridge->BeginReplication</code> 注册要同步的 UObject。返回 <code>FNetRefHandle</code>——Iris 内部的轻量句柄，替代 UActorChannel。</p>
+<span class="src">Runtime/Experimental/Iris/Core/Public/Iris/ReplicationSystem/ObjectReplicationBridge.h:111</span>
+
+<h2>2. FReplicationStateDescriptor - Iris 的核心创新</h2>
+<p>类初始化时通过 <code>ReplicationStateDescriptorBuilder</code> 一次性从反射构建：</p>
+<ul>
+<li>字段 offset / size</li>
+<li>每字段的 <code>FNetSerializer</code> 指针（PackedVector, Quat, Struct...）</li>
+<li>ChangeMask 位号</li>
+<li>Push Model 支持标记</li>
+</ul>
+<p>后续所有 diff/序列化都是 O(1) 查表，<strong>不再运行时反射</strong>。</p>
+<span class="src">Runtime/Experimental/Iris/Core/Private/Iris/ReplicationState/ReplicationStateDescriptorBuilder.cpp</span>
+
+<h2>3. MarkDirty + ChangeMask (Push Model 增量位图)</h2>
+<p>每个被同步的对象持有一份 <strong>ChangeMask（位图）</strong>。属性 setter 或 <code>MARK_PROPERTY_DIRTY</code> 宏把对应 bit 置 1。PreSendUpdate 时只需扫 ChangeMask != 0 的对象和位——比原生的"逐字段 diff Shadow State"快得多。</p>
+
+<h2>4. PreSendUpdate(DeltaSeconds) - 每帧核心入口</h2>
+<p>子步骤：</p>
+<ol>
+<li><strong>Poll</strong>：采样非 Push Model 属性到 State Buffer（ObjectPollFrequencyLimiter）</li>
+<li><strong>Filter</strong>：通过 NetObjectFilter（空间/兴趣/连接白名单）</li>
+<li><strong>Prioritize</strong>：通过 NetObjectPrioritizer 打分排序</li>
+<li>生成本帧要发的对象集合</li>
+</ol>
+<span class="src">Runtime/Experimental/Iris/Core/Public/Iris/ReplicationSystem/ReplicationSystem.h:101</span>
+
+<h2>5. 可插拔过滤器与优先级</h2>
+
+<h3>NetObjectFilter</h3>
+<p>类似 RepGraph Node 的现代版。可实现自定义 Filter：空间距离 Filter、队伍/仇恨 Filter、视锥 Filter。返回一个位图指定哪些对象对哪些 Connection 可见。</p>
+<span class="src">Runtime/Experimental/Iris/Core/Public/Iris/ReplicationSystem/Filtering/NetObjectFilter.h</span>
+
+<h3>NetObjectPrioritizer</h3>
+<p>每 Connection 每帧对候选对象打分。类似原生 NetPriority，但更灵活：可自定义 SpaceUsage / DistanceSq / RecentActivity 组合。带宽满时截断。</p>
+<span class="src">Runtime/Experimental/Iris/Core/Public/Iris/ReplicationSystem/Prioritization/NetObjectPrioritizer.h</span>
+
+<h2>6. ReplicationWriter - 脱离 ActorChannel</h2>
+<p>脱离 UActorChannel/FOutBunch。直接对每个 dirty state 用其 FNetSerializer 序列化到 <code>FNetBitStreamWriter</code>。写入格式包含：Handle 索引 + ChangeMask 位段 + 数据。整体 packet 由 DataStreamManager 组装。</p>
+<span class="src">Runtime/Experimental/Iris/Core/Private/Iris/ReplicationSystem/ReplicationWriter.cpp</span>
+
+<h2>7. DataStreamManager - 分层数据流</h2>
+<p>Iris 独立的分层数据流管理。多路复用不同类型流：</p>
+<ul>
+<li><strong>ReplicationDataStream</strong>：属性同步</li>
+<li><strong>AttachmentReplication</strong>：RPC</li>
+<li><strong>NetTokenDataStream</strong>：字符串/引用</li>
+</ul>
+<p>每个流独立可靠性/优先级。</p>
+<span class="src">Runtime/Experimental/Iris/Core/Private/Iris/DataStream/DataStreamManager.cpp</span>
+
+<h2>8. 客户端：ReplicationReader</h2>
+<p>客户端对称的读取端。用同一份 FReplicationStateDescriptor 反向查表，<code>DequantizeAndApplyHelper</code> 把量化后的字节流解码回 UObject 属性，触发 RepNotify 回调。</p>
+
+<h2>9. PostSendUpdate</h2>
+<p>发完清理：已发出的 dirty bit 移入"pending ACK"记录 -> ACK 到达真正清 mask -> 丢包重新标 dirty。基于 PacketNotification 系统。</p>
+
+<h2>Iris 相对原生的优势</h2>
+<div class="note">
+<ol>
+<li><strong>无运行时反射</strong>：Descriptor 编译期建好</li>
+<li><strong>Push Model</strong>：ChangeMask 位图 vs 原生 diff Shadow</li>
+<li><strong>可插拔过滤/优先级</strong>：类似 RepGraph 但更细粒度</li>
+<li><strong>脱离 ActorChannel</strong>：不再受 128 通道限制</li>
+<li><strong>多线程友好</strong>：Descriptor 只读、Poll/Filter 可并行</li>
+<li><strong>更小的 Bit 数</strong>：NetSerializer 支持 range/quantization</li>
+</ol>
+</div>
+
+<h2>当前状态</h2>
+<div class="warn">
+截至 UE 5.4 仍标记 <strong>Experimental</strong>，生态未成熟。不建议生产项目直接使用。
+</div>
+</body>
+</html>

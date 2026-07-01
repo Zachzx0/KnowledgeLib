@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>UE RPC 完整数据流</title>
+<style>
+  body{font-family:"Segoe UI","Microsoft YaHei",sans-serif;max-width:860px;margin:0 auto;padding:24px;background:#0a1220;color:#e0e8f8;line-height:1.8}
+  h1{color:#7ee0ff;border-bottom:1px solid #22305c;padding-bottom:12px;font-size:22px}
+  h2{color:#7ee0ff;margin:24px 0 8px 0;font-size:17px}
+  h3{color:#ffd08a;margin:16px 0 6px 0;font-size:14px}
+  p{margin:8px 0;color:#c8d3ec;font-size:14px}
+  code{background:#1c2d50;color:#5acc8a;padding:2px 6px;border-radius:3px;font-size:12px;font-family:Consolas,monospace}
+  pre{background:#101b30;padding:14px;border-radius:8px;overflow-x:auto;border:1px solid #22305c}
+  pre code{background:none;padding:0}
+  ul,ol{padding-left:24px;color:#c8d3ec}
+  li{margin:4px 0}
+  strong{color:#fff}
+  .src{color:#89b0ff;font-size:12px;font-family:Consolas,monospace;display:block;margin:4px 0}
+  .note{background:rgba(90,138,255,0.1);border-left:3px solid #5a8aff;padding:12px 16px;margin:12px 0;border-radius:0 6px 6px 0;font-size:13px}
+  .warn{background:rgba(224,85,106,0.1);border-left:3px solid #e0556a;padding:12px 16px;margin:12px 0;border-radius:0 6px 6px 0;font-size:13px}
+  .opt{background:rgba(90,204,138,0.1);border-left:3px solid #5acc8a;padding:12px 16px;margin:12px 0;border-radius:0 6px 6px 0;font-size:13px}
+  hr{border:0;border-top:1px solid #22305c;margin:32px 0}
+</style>
+</head>
+<body>
+<h1>UE RPC 完整数据流：三种方向</h1>
+<p>详解 UE RPC 三种方向的完整调用链：Server RPC (客户端->服务器)、Client RPC (服务器->拥有者客户端)、Multicast RPC (服务器->所有相关客户端)，含 Bunch 打包与 UDP 发送机制。</p>
+
+<h2>RPC 调用入口</h2>
+<p><code>UFUNCTION(Server, Reliable, WithValidation)</code> 声明后，UHT 生成 <code>ServerXXX_Implementation</code>（真正逻辑）和 thunk（Validate + 走网络）。开发者调 ServerXXX() 实际进入 thunk。</p>
+
+<h2>通用调用链</h2>
+<h3>CallRemoteFunction</h3>
+<p>thunk 调此方法。枚举 GetNetDriverList 的所有 NetDriver（Game / Demo / Beacon），对每个调 ProcessRemoteFunction。</p>
+<span class="src">Runtime/Engine/Private/Actor.cpp:5242</span>
+
+<h3>ProcessRemoteFunction - 派发核心</h3>
+<p>判定 RPC 方向：</p>
+<ul>
+<li><strong>Server RPC</strong> -> 找 ServerConnection（客户端唯一那个）</li>
+<li><strong>Client RPC</strong> -> Actor 的 OwningConnection（Actor->GetNetConnection()）</li>
+<li><strong>Multicast</strong> -> 广播到所有 Client Connection</li>
+</ul>
+<p>然后调 InternalProcessRemoteFunction。</p>
+<span class="src">Runtime/Engine/Private/NetDriver.cpp:7418</span>
+
+<h3>ProcessRemoteFunctionForChannelPrivate - 打包核心</h3>
+<p>关键步骤：</p>
+<ol>
+<li>若 Channel.OpenPacketId==INDEX_NONE -> 先 ReplicateActor() 建立通道</li>
+<li>新建 FOutBunch Bunch(Ch, 0)</li>
+<li>若 FUNC_NetReliable -> Bunch.bReliable=1</li>
+<li>序列化参数 -> 写入 FNetBitWriter TempWriter</li>
+<li>写 header + payload 到 Bunch</li>
+<li>Ch->SendBunch(&Bunch, true)</li>
+</ol>
+<span class="src">Runtime/Engine/Private/NetDriver.cpp:2593</span>
+
+<h3>RPC Bunch 结构</h3>
+<p>一个 RPC Bunch 里塞：ContentBlockHeader（目标 SubObject GUID）+ FieldHeader（RPC 在类中的 FieldNetIndex）+ Payload（参数序列化后的 bit 流）。组织成 [BlockHeader | FieldHeader | Payload]。</p>
+
+<h3>FRepLayout::SendPropertiesForRPC</h3>
+<p>和属性同步共用同一套 RepLayout。RPC 参数被当作一个"临时结构体"，逐字段调 NetSerialize。Object 引用会转成 FNetworkGUID。</p>
+<span class="src">Runtime/Engine/Private/Net/RepLayout.cpp</span>
+
+<hr>
+
+<h2>Server RPC（客户端 -> 服务端）</h2>
+<p>只能从拥有该 Actor 的客户端调用（AutonomousProxy 端），SimulatedProxy 端调用会被丢弃。典型场景：玩家按下开火键 -> 客户端调 ServerFire() -> 服务器权威判定。</p>
+
+<h3>ServerXXX_Validate - 安全校验</h3>
+<div class="warn">
+带 <strong>WithValidation</strong> 的 Server RPC 必须提供 <code>ServerXXX_Validate</code> 函数。返回 false -> 服务器<strong>直接踢出该客户端</strong>（防作弊）。<br><br>
+典型防作弊场景：客户端上报"我扣了敌人 999999 点血"-> Validate 检查伤害数值上限 -> false -> 踢。
+</div>
+
+<h3>服务端执行</h3>
+<p>ProcessEvent -> Implementation 做权威判定：射线检测、伤害计算、扣弹药。改了 Replicated 属性会通过下一次同步分发给所有相关客户端（含 AutonomousProxy 自己）。</p>
+
+<hr>
+
+<h2>Client RPC（服务端 -> 拥有者客户端）</h2>
+<p>只发给该 Actor 的 OwningConnection（AutonomousProxy 那个连接）。SimulatedProxy 端<strong>永远收不到别人的 Client RPC</strong>——数据私密性的天然保障。</p>
+<p>典型场景：服务器判定"你被击中了"-> 调 ClientPlayHitSound() -> 只在受害玩家自己屏幕上播放特效/UI。</p>
+
+<hr>
+
+<h2>Multicast RPC（服务端 -> 所有相关客户端）</h2>
+<p>也遵循<strong>网络相关性</strong>——远处的客户端如果对该 Actor 无 Channel，就收不到。服务端发起时自己也执行一次 Implementation（NM_ListenServer 场景）。</p>
+
+<h3>延迟发送优化</h3>
+<div class="opt">
+源码实证：不可靠 Multicast 会先入队 <code>QueuedExportBunches</code>，等下一次 Actor 的 ReplicateActor 时和属性同步一起发——<strong>省 Bunch header + 增加 UDP 合批率</strong>。
+</div>
+
+<p>源码：<code>Runtime/Engine/Private/NetDriver.cpp:2820</code></p>
+
+<h2>注意事项</h2>
+<ul>
+<li>服务端会为每个相关 Connection 各生成一份 Bunch——不是"一份广播"</li>
+<li>若 Multicast 需要让所有玩家状态一致：推荐做法是 <strong>服务端改 Replicated 属性 + Multicast 只做特效</strong></li>
+<li>可靠 Bunch 存在 OutRec 链表里，直到收到 ACK 才释放；丢包会自动重发</li>
+<li>不可靠 Server RPC 不入 OutRec，丢了就丢了</li>
+</ul>
+</body>
+</html>

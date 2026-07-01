@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VibeLearn - 学习知识库</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div class="app-container">
+  <!-- 侧边栏 -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <span class="sidebar-logo">Vibe<span class="dot">Learn</span></span>
+    </div>
+
+    <div class="sidebar-sections">
+      <div class="sidebar-section">
+        <div class="sidebar-section-title">分类目录</div>
+        <ul class="category-list" id="categoryList"></ul>
+      </div>
+
+      <div class="sidebar-section">
+        <div class="sidebar-section-title">标签云</div>
+        <div class="tag-cloud" id="tagCloud"></div>
+      </div>
+    </div>
+
+    <div class="sidebar-footer">
+      <button class="btn" id="btnAdd" title="添加新知识片段">&#x2795; 添加</button>
+      <button class="btn" id="btnExportJSON" title="导出全部数据">&#x1F4E4;</button>
+      <button class="btn" id="btnImportJSON" title="导入数据">&#x1F4E5;</button>
+      <button class="btn" id="btnResetCache" title="从 index.json 重新加载数据" style="font-size:10px;">&#x21BA; 刷新索引</button>
+      <input type="file" id="fileImportInput" accept=".json" style="display:none;">
+    </div>
+  </aside>
+
+  <!-- 主内容区 -->
+  <main class="main-content">
+    <!-- 搜索栏 -->
+    <header class="header">
+      <div class="search-box">
+        <span class="search-icon">&#x1F50D;</span>
+        <input type="text" class="search-input" id="searchInput" placeholder="搜索知识片段...（标题、摘要、标签）">
+      </div>
+      <span class="search-count" id="searchCount"></span>
+      <div class="view-tabs" id="viewTabs" style="display:none;">
+        <button class="view-tab active" data-view="canvas">图表</button>
+        <button class="view-tab" data-view="html">详情</button>
+      </div>
+    </header>
+
+    <!-- 内容区域 -->
+    <div class="content-area">
+      <!-- 片段列表 -->
+      <div class="snippet-list-panel">
+        <div class="snippet-list" id="snippetList">
+          <div class="empty-state">
+            <div class="empty-state-icon">&#x1F4ED;</div>
+            <div class="empty-state-text">加载中...</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 详情 / Canvas 面板 -->
+      <div class="detail-panel">
+        <div class="detail-header" id="detailHeader">
+          <div class="detail-header-info">
+            <h2>&nbsp;</h2>
+          </div>
+        </div>
+
+        <!-- Canvas 图表视图 -->
+        <div class="canvas-container" id="canvasContainer" style="display:none;">
+          <canvas id="detailCanvas"></canvas>
+          <div class="canvas-controls">
+            <button class="btn btn-icon" id="btnFit" title="适应视图">&#x1F50D;</button>
+            <button class="btn btn-icon" id="btnReset" title="重置视图">&#x21BA;</button>
+            <button class="btn btn-icon" id="btnExport" title="导出图片">&#x1F4F7;</button>
+          </div>
+          <div class="canvas-legend">
+            <span style="font-size:11px;color:var(--text-muted);">&#x1F6C8; 拖拽平移 · 滚轮缩放 · 双击适应</span>
+          </div>
+        </div>
+
+        <!-- HTML 详情视图 -->
+        <div class="detail-html-view" id="htmlView">
+          <div class="empty-state">
+            <div class="empty-state-icon">&#x1F4A1;</div>
+            <div class="empty-state-text">选择一个知识片段查看详情</div>
+            <div class="empty-state-hint">点击左侧列表中的条目开始浏览</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- Toast 容器 -->
+<div class="toast-container"></div>
+
+<!-- 默认数据嵌入（解决 file:// 无法 fetch 的问题） -->
+<script id="vibe-default-data" type="application/json">
+{"version":"2.2","snippets":[
+{"id":"ue-net-overview-001","title":"UE 网络同步方案总览对比：原生 vs ReplicationGraph vs Iris","category":"game-dev","tags":["Unreal Engine","网络同步","Replication","ReplicationGraph","Iris","架构对比"],"file":"game-dev/ue_networking_overview.html","createdAt":"2026-07-01","hasDiagram":true,"chartDataId":"chart-ue-net-overview-001","summary":"深入对比 UE 三种网络同步方案的架构差异：原生 UNetDriver + ActorChannel 的 O(NxM) 模式、ReplicationGraph 的空间分片优化、以及 Iris 的数据驱动现代化框架。"},
+{"id":"ue-native-repl-002","title":"UE 原生同步 (Native Replication) 完整数据流","category":"game-dev","tags":["Unreal Engine","原生同步","UNetDriver","ActorChannel","FRepLayout","FOutBunch","属性同步"],"file":"game-dev/ue_native_replication.html","createdAt":"2026-07-01","hasDiagram":true,"chartDataId":"chart-ue-native-repl-002","summary":"从 UPROPERTY 声明到 UDP 发包的完整链路：PreReplication -> ServerReplicateActors -> ReplicateActor -> FRepLayout diff -> SendBunch -> FlushNet -> 客户端 ProcessBunch。核心 O(NxM) 复杂度分析。"},
+{"id":"ue-repgraph-003","title":"UE ReplicationGraph 空间分片架构详解","category":"game-dev","tags":["Unreal Engine","ReplicationGraph","空间分片","Fortnite","UReplicationDriver","GridSpatialization"],"file":"game-dev/ue_repgraph.html","createdAt":"2026-07-01","hasDiagram":true,"chartDataId":"chart-ue-repgraph-003","summary":"通过空间网格分片、休眠管理、永远相关节点和动态频率，将 CPU 从 O(NxM) 降到 O(kxM)。Fortnite 100 玩家大逃杀的核心优化。"},
+{"id":"ue-iris-004","title":"UE Iris 现代化数据驱动同步系统","category":"game-dev","tags":["Unreal Engine","Iris","ReplicationSystem","Push Model","ChangeMask","NetSerializer","UE5"],"file":"game-dev/ue_iris.html","createdAt":"2026-07-01","hasDiagram":true,"chartDataId":"chart-ue-iris-004","summary":"用数据驱动的 FReplicationStateDescriptor 和 ChangeMask 位图取代运行时反射，配合可插拔 Filter/Prioritizer 和独立 DataStream，实现更快更灵活的同步。"},
+{"id":"ue-rpc-005","title":"UE RPC 完整数据流：Server / Client / Multicast 三种方向","category":"game-dev","tags":["Unreal Engine","RPC","ServerRPC","ClientRPC","Multicast","NetDriver","数据流"],"file":"game-dev/ue_rpc_flow.html","createdAt":"2026-07-01","hasDiagram":true,"chartDataId":"chart-ue-rpc-005","summary":"详解三种 RPC 方向的完整调用链：Server RPC (含 Validation 防作弊)、Client RPC (私密性保障)、Multicast RPC (队列合批优化)，含 Bunch 打包与 UDP 发送机制。"},
+{"id":"ue-proprep-006","title":"UE 属性同步 (Property Replication) 完整数据流","category":"game-dev","tags":["Unreal Engine","属性同步","FRepLayout","DiffProperties","Shadow State","RepNotify","SendProperties"],"file":"game-dev/ue_property_replication.html","createdAt":"2026-07-01","hasDiagram":true,"chartDataId":"chart-ue-proprep-006","summary":"从 UPROPERTY 声明到 OnRep 回调的完整链路：FRepLayout 预生成 -> DiffProperties 对比 Shadow State -> SendProperties 只写脏字段 -> 客户端反序列化 -> RepNotify。"},
+{"id":"ue-seq-proprep-007","title":"UE 网络时序 · 属性同步三端交互 (Authority / AutoProxy / SimProxy)","category":"game-dev","tags":["Unreal Engine","属性同步","时序图","三端交互","Authority","AutonomousProxy","SimulatedProxy","COND_OwnerOnly"],"file":"game-dev/ue_seq_property.html","createdAt":"2026-07-01","hasDiagram":true,"chartDataId":"chart-ue-seq-proprep-007","summary":"详细拆解属性同步时三端的协作时序：COND_OwnerOnly 条件分发差异、客户端预测 vs 插值、NetRole 状态机、Replication Condition 详解。"},
+{"id":"ue-seq-rpc-008","title":"UE 网络时序 · RPC 三种方向 (Server / Client / Multicast)","category":"game-dev","tags":["Unreal Engine","RPC","时序图","ServerRPC","ClientRPC","Multicast","三方向","防作弊"],"file":"game-dev/ue_seq_rpc.html","createdAt":"2026-07-01","hasDiagram":true,"chartDataId":"chart-ue-seq-rpc-008","summary":"通过时序详解三种 RPC 方向的全流程：Server RPC (上传+Validate防作弊)、Client RPC (私密下发)、Multicast RPC (广播+合批优化)。"},
+{"id":"ue-seq-move-009","title":"UE 网络时序 · 移动预测与服务器修正 (教科书级三方交互)","category":"game-dev","tags":["Unreal Engine","移动预测","ClientAdjustPosition","ServerMove","Prediction","Reconciliation","CharacterMovement"],"file":"game-dev/ue_seq_move.html","createdAt":"2026-07-01","hasDiagram":true,"chartDataId":"chart-ue-seq-move-009","summary":"UE 网络架构最经典的三方交互：AutonomousProxy 预测 + ServerMove + Authority 验证 + ClientAdjustPosition 修正 + SavedMoves 回放 + SimulatedProxy 插值。延迟不可消除但可隐藏。"}
+]}
+</script>
+
+<script src="js/data.js"></script>
+<script src="js/category.js"></script>
+<script src="js/search.js"></script>
+<script src="js/chart-data.js"></script>
+<script src="js/canvas-viewer.js"></script>
+<script src="js/app.js"></script>
+
+</body>
+</html>

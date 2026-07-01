@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>UE 网络时序·移动预测与服务器修正</title>
+<style>
+  body{font-family:"Segoe UI","Microsoft YaHei",sans-serif;max-width:860px;margin:0 auto;padding:24px;background:#0a1220;color:#e0e8f8;line-height:1.8}
+  h1{color:#7ee0ff;border-bottom:1px solid #22305c;padding-bottom:12px;font-size:22px}
+  h2{color:#7ee0ff;margin:24px 0 8px 0;font-size:17px}
+  h3{color:#ffd08a;margin:16px 0 6px 0;font-size:14px}
+  p{margin:8px 0;color:#c8d3ec;font-size:14px}
+  code{background:#1c2d50;color:#5acc8a;padding:2px 6px;border-radius:3px;font-size:12px;font-family:Consolas,monospace}
+  pre{background:#101b30;padding:14px;border-radius:8px;overflow-x:auto;border:1px solid #22305c}
+  pre code{background:none;padding:0}
+  ul,ol{padding-left:24px;color:#c8d3ec}
+  li{margin:4px 0}
+  strong{color:#fff}
+  .src{color:#89b0ff;font-size:12px;font-family:Consolas,monospace;display:block;margin:4px 0}
+  .note{background:rgba(90,138,255,0.1);border-left:3px solid #5a8aff;padding:12px 16px;margin:12px 0;border-radius:0 6px 6px 0;font-size:13px}
+  .warn{background:rgba(255,208,138,0.1);border-left:3px solid #ffd08a;padding:12px 16px;margin:12px 0;border-radius:0 6px 6px 0;font-size:13px}
+  .opt{background:rgba(90,204,138,0.1);border-left:3px solid #5acc8a;padding:12px 16px;margin:12px 0;border-radius:0 6px 6px 0;font-size:13px}
+  table{border-collapse:collapse;margin:12px 0;width:100%}
+  th,td{border:1px solid #22305c;padding:8px 12px;text-align:left;font-size:13px}
+  th{background:#152040;color:#7ee0ff}
+  td{color:#c8d3ec}
+  hr{border:0;border-top:1px solid #22305c;margin:32px 0}
+  .phase{background:#152040;padding:8px 14px;border-radius:6px;margin:12px 0;border:1px solid #22305c}
+  .phase-title{color:#7ee0ff;font-weight:600;margin-bottom:6px}
+</style>
+</head>
+<body>
+<h1>UE 网络时序 · 移动预测与服务器修正</h1>
+<p>UE 网络架构最经典的三方交互——同时涉及 ServerMove RPC + ClientAdjustPosition RPC + 属性同步 + 客户端预测 + SavedMoves 回放 + SimulatedProxy 平滑插值。</p>
+
+<div class="note">
+<strong>核心思想：延迟不可消除，但可以被隐藏。</strong><br><br>
+这套架构叫 <strong>Client-side Prediction + Server Reconciliation</strong>——从 Quake III 沿用至今，UE 是这套架构在游戏引擎中最完备的实现之一。
+</div>
+
+<hr>
+
+<h2>阶段 1：AutonomousProxy - 输入采样与本地预测</h2>
+
+<div class="phase">
+<div class="phase-title">T=0ms: 输入采样</div>
+<p>UCharacterMovementComponent::TickComponent 检测到 ROLE_AutonomousProxy。把本帧输入（Acceleration + Rotation + JumpFlags）打包成 FSavedMove_Character 存入 SavedMoves 队列。</p>
+<p><code>TimeStamp</code> 是关键——用于服务端和客户端对齐。</p>
+<span class="src">CharacterMovementComponent.cpp:TickComponent</span>
+</div>
+
+<div class="phase">
+<div class="phase-title">本地预测立即执行</div>
+<p><strong>客户端不等服务器就先移动</strong>——玩家感觉零延迟。<br>PerformMovement 里跑物理、碰撞、爬楼梯，最后写入 Pawn 的 Location。</p>
+<span class="src">CharacterMovementComponent.cpp:2597</span>
+</div>
+
+<div class="phase">
+<div class="phase-title">上传输入 (ReplicateMoveToServer)</div>
+<p>把 SavedMove 里的输入 + 本地预测的最终位置（ClientLoc）打包，通过 ServerMove RPC 发给服务端。发 ClientLoc 是为了让服务器验证客户端是否作弊/是否需要修正。</p>
+<span class="src">CharacterMovementComponent.cpp:8728</span>
+</div>
+
+<hr>
+
+<h2>阶段 2：Authority - 权威验证</h2>
+
+<div class="phase">
+<div class="phase-title">ServerMove RPC 到达 (~50ms)</div>
+<p>ACharacter::ServerMove_Implementation -> GetCharacterMovement()->ServerMove_Implementation(TimeStamp, Accel, ClientLoc, MoveFlags, ...)。</p>
+<p><strong>Unreliable！</strong>——移动 RPC 不可靠，因为下一个 Move 会自动覆盖上一个。丢包了会由 PendingMove 合并到下一次一起发。</p>
+<span class="src">Character.cpp:1840</span>
+</div>
+
+<div class="phase">
+<div class="phase-title">服务端权威执行</div>
+<p>MoveAutonomous(TimeStamp, dt, Accel)：服务端用相同的输入再跑一次 PerformMovement——这次是权威结果。由于客户端和服务端跑相同的物理，正常情况下两边位置应该几乎一致。</p>
+<span class="src">CharacterMovementComponent.cpp:9164</span>
+</div>
+
+<div class="phase">
+<div class="phase-title">差错检测</div>
+<p>ServerCheckClientError 对比 ClientLoc vs ServerLoc：</p>
+<ul>
+<li>差距 &lt; MaxPositionErrorSquared 阈值 -> 认可客户端位置，不发修正</li>
+<li>差距 &gt; 阈值 -> 判定客户端错了（碰撞不同 / 作弊 / 丢包），准备修正</li>
+</ul>
+</div>
+
+<hr>
+
+<h2>分支 A：预测正确（99% 常见路径）</h2>
+<div class="opt">
+如果 ClientLoc ~= ServerLoc，服务端不发修正 RPC，只把新位置作为 Replicated 属性推给其他客户端（SimulatedProxy）。AutonomousProxy 端本地预测的位置就是最终位置——玩家感觉零延迟。
+</div>
+
+<hr>
+
+<h2>分支 B：位置误差大 -> 服务器修正</h2>
+<p>例：客户端认为自己冲进了门，但服务端判定门被锁上了 -> 服务端要"拉回"客户端。</p>
+
+<div class="phase">
+<div class="phase-title">ClientAdjustPosition (Reliable RPC)</div>
+<p>ACharacter::ClientAdjustPosition_Implementation -> GetCharacterMovement()->ClientAdjustPosition_Implementation(TimeStamp, NewLoc, NewVel, ...)。<strong>Reliable 保证一定到达。</strong></p>
+<p>用 SendClientAdjustment 打包发出。TimeStamp 告诉客户端"你 T=X 时刻的预测错了"。</p>
+<span class="src">Character.cpp:1924</span>
+</div>
+
+<div class="phase">
+<div class="phase-title">客户端：回滚 + 重放 (Replay)</div>
+<div class="warn">
+<strong>Prediction & Reconciliation 的核心步骤：</strong>
+<ol>
+<li>把角色位置直接设为服务端给的 NewLoc</li>
+<li>从 SavedMoves 队列中丢弃 &lt;= TimeStamp 的 Move（服务器已确认）</li>
+<li><strong>重新执行</strong>剩余的 SavedMoves（ServerMove_PerformMovement）——玩家在 T~现在这段时间的输入不能白按！</li>
+</ol>
+结果：位置抖一下但输入不丢。
+</div>
+<span class="src">CharacterMovementComponent.cpp:8845</span>
+</div>
+
+<hr>
+
+<h2>阶段 3：SimulatedProxy - 平滑插值</h2>
+<div class="phase">
+<div class="phase-title">广播属性同步</div>
+<p>AActor::ReplicatedMovement (FRepMovement) 包含位置/速度/旋转。Authority 每 NetUpdateFrequency（Character 默认 100Hz）通过 ServerReplicateActors 推给所有 SimulatedProxy。</p>
+</div>
+
+<div class="phase">
+<div class="phase-title">SmoothClientPosition - 向新位置插值</div>
+<div class="opt">
+SimulatedProxy 端<strong>不会瞬移</strong>到新位置——因为收到的位置是 ~100ms 前的服务端快照，直接跳会很刺眼。<br><br>
+做法：<code>SmoothClientPosition</code> 记录目标位置，每帧向目标插值（<code>NetworkSmoothingMode::Exponential</code> 默认）。<br><br>
+这就是为什么<strong>玩家感觉自己零延迟、看别人平滑</strong>——两套不同的处理逻辑。
+</div>
+<span class="src">CharacterMovementComponent.cpp:SmoothClientPosition</span>
+</div>
+
+<hr>
+
+<h2>三端总结</h2>
+<table>
+<tr><th>端</th><th>行为</th><th>关键特点</th></tr>
+<tr><td><strong>AutonomousProxy</strong></td><td>立即执行预测</td><td>0 延迟感；后台异步等服务端确认；出错回滚+重放->输入不丢</td></tr>
+<tr><td><strong>SimulatedProxy</strong></td><td>无输入权，纯观察</td><td>收到的是 ~100ms 前的服务端快照；通过插值让"别人"看起来平滑</td></tr>
+<tr><td><strong>Authority</strong></td><td>唯一权威</td><td>用同样输入验证客户端结果；出错则强制拉回(Reliable RPC)；广播权威位置给所有 SimulatedProxy</td></tr>
+</table>
+
+</body>
+</html>

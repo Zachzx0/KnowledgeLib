@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>UE 属性同步 (Property Replication) 完整数据流</title>
+<style>
+  body{font-family:"Segoe UI","Microsoft YaHei",sans-serif;max-width:860px;margin:0 auto;padding:24px;background:#0a1220;color:#e0e8f8;line-height:1.8}
+  h1{color:#7ee0ff;border-bottom:1px solid #22305c;padding-bottom:12px;font-size:22px}
+  h2{color:#7ee0ff;margin:24px 0 8px 0;font-size:17px}
+  h3{color:#ffd08a;margin:16px 0 6px 0;font-size:14px}
+  p{margin:8px 0;color:#c8d3ec;font-size:14px}
+  code{background:#1c2d50;color:#5acc8a;padding:2px 6px;border-radius:3px;font-size:12px;font-family:Consolas,monospace}
+  pre{background:#101b30;padding:14px;border-radius:8px;overflow-x:auto;border:1px solid #22305c}
+  pre code{background:none;padding:0}
+  ul,ol{padding-left:24px;color:#c8d3ec}
+  li{margin:4px 0}
+  strong{color:#fff}
+  .src{color:#89b0ff;font-size:12px;font-family:Consolas,monospace;display:block;margin:4px 0}
+  .note{background:rgba(90,138,255,0.1);border-left:3px solid #5a8aff;padding:12px 16px;margin:12px 0;border-radius:0 6px 6px 0;font-size:13px}
+  .warn{background:rgba(255,208,138,0.1);border-left:3px solid #ffd08a;padding:12px 16px;margin:12px 0;border-radius:0 6px 6px 0;font-size:13px}
+  .opt{background:rgba(90,204,138,0.1);border-left:3px solid #5acc8a;padding:12px 16px;margin:12px 0;border-radius:0 6px 6px 0;font-size:13px}
+</style>
+</head>
+<body>
+<h1>UE 属性同步 (Property Replication) 完整数据流</h1>
+<p>从 UPROPERTY(Replicated) 声明到客户端 OnRep_XXX 回调的完整链路。核心机制：FRepLayout 预生成布局 -> DiffProperties 对比 Shadow State -> SendProperties 只写脏字段 -> 客户端反序列化直接写内存。</p>
+
+<h2>1. 属性声明</h2>
+<p><code>UPROPERTY(Replicated)</code> 或带 RepNotify 的 <code>ReplicatedUsing=OnRep_XXX</code>。还需在 GetLifetimeReplicatedProps 里注册：</p>
+<pre><code>DOREPLIFETIME(AMyActor, HP);
+DOREPLIFETIME_CONDITION(AMyActor, Gold, COND_OwnerOnly);</code></pre>
+
+<h2>2. FRepLayout 初始化（一次性）</h2>
+<p>类首次被同步时通过 <code>InitFromClass</code> 构建，缓存永久。扫描所有 UPROPERTY(Replicated)：</p>
+<ul>
+<li>生成 FRepLayoutCmd（含 offset/size/property/CmdType）</li>
+<li>展开数组和嵌套结构</li>
+<li>建立 handle 编号</li>
+</ul>
+<p>之后每帧 diff 都用这份 Layout 表。</p>
+<span class="src">Runtime/Engine/Private/Net/RepLayout.cpp</span>
+
+<h2>3. 服务器属性变更</h2>
+<p><strong>只有服务器有权改</strong>——客户端改了会被下一次同步覆盖。Push Model 场景需要额外调 <code>MARK_PROPERTY_DIRTY_FROM_NAME</code> 通知系统。</p>
+
+<h2>4. 主循环：ServerReplicateActors</h2>
+<p>服务器每帧 Tick -> UNetDriver::TickFlush -> ServerReplicateActors。默认约 30Hz（NetServerMaxTickRate）。</p>
+<p>BuildConsiderList 筛选 NextUpdateTime 到期的 Actor。Dormant 的 Actor 不进列表（除非 FlushNetDormancy 唤醒）。</p>
+
+<h2>5. 每连接 IsRelevant + PrioritizeActors</h2>
+<p>对每个连接：</p>
+<ol>
+<li>调 Actor->IsNetRelevantFor(ViewerPawn, ViewerLoc) 剔除不相关</li>
+<li>计算优先级 = NetPriority x TimeSinceLast x 距离衰减</li>
+<li>按优先级排序，按带宽预算截取前 K 个</li>
+</ol>
+
+<h2>6. ReplicateActor 流程</h2>
+<ol>
+<li>首次 -> 序列化 Actor 类 GUID + Location（生成通道）</li>
+<li>收集 Actor 及其所有 ReplicatedSubObjects（Component）</li>
+<li>每个 UObject 一次 FObjectReplicator::ReplicateProperties</li>
+<li>结果拼进一个 Bunch -> SendBunch</li>
+</ol>
+<span class="src">Runtime/Engine/Classes/Engine/ActorChannel.h:194</span>
+
+<h2>7. DiffProperties - 脏字段检测</h2>
+<div class="warn">
+每个 UObject 的 FObjectReplicator 保存一份 <strong>FRepShadowDataBuffer</strong>——上次成功发送的所有属性值副本。每帧 diff：逐 FRepLayoutCmd 比对当前值 vs Shadow -> 生成 ChangedPropertyTracker（存 dirty handle 列表）。<br><br>
+<strong>这是原生方案最贵的一步——O(属性数)。Iris 的 Push Model 就是为消灭它。</strong>
+</div>
+<span class="src">Runtime/Engine/Private/Net/RepLayout.cpp</span>
+
+<h2>8. SendProperties - 只写脏字段</h2>
+<p>对每个 dirty handle 写：</p>
+<ul>
+<li>handle 编号（VarInt 压缩）</li>
+<li>值（用属性对应的 NetSerialize）</li>
+</ul>
+<p>Vector 走 SerializeCompressedVector（16-bit 量化）；Rotator 压缩到 8-bit。末尾写 Terminator (0)。</p>
+
+<h2>9. 发包</h2>
+<p>所有 dirty 属性 + SubObject 的 Bunch 拼成一个 FOutBunch。大 Bunch 自动切成 PartialBunch（bPartial=1）。可靠 Bunch 存 OutRec 等 ACK，丢包重发。</p>
+
+<h2>10. 客户端反序列化 + OnRep 回调</h2>
+<p>客户端读 handle 循环：</p>
+<ul>
+<li>读 handle 编号（0=终止）</li>
+<li>用同一份 FRepLayoutCmd 找到属性 offset</li>
+<li>NetSerialize 反序列化</li>
+<li><strong>直接写目标 UObject 内存</strong></li>
+<li>触发 OnRep_XXX 回调</li>
+</ul>
+<div class="note">
+即使值和之前一样也会触发（除非用 REPNOTIFY_OnChanged）。OnRep 参数可拿到旧值。
+</div>
+
+<h2>关键优化：Shadow State + Handle 编号</h2>
+<div class="opt">
+<strong>没变的属性完全不写字节；变了也只写 handle 而非属性名。</strong><br><br>
+早期 UE3 用属性名 hash 作为 tag——很浪费带宽。UE4/5 引入 handle 编号（同一 UClass 服务器和客户端 Layout 一致，编号相同）-> 每字段只花 1-2 字节 handle + 值。<br><br>
+Iris 更进一步：<strong>连 handle 都不写</strong>，直接靠 ChangeMask 位号定位。
+</div>
+</body>
+</html>

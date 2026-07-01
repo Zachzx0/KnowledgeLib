@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>UE 网络时序·RPC 三种方向</title>
+<style>
+  body{font-family:"Segoe UI","Microsoft YaHei",sans-serif;max-width:860px;margin:0 auto;padding:24px;background:#0a1220;color:#e0e8f8;line-height:1.8}
+  h1{color:#7ee0ff;border-bottom:1px solid #22305c;padding-bottom:12px;font-size:22px}
+  h2{color:#7ee0ff;margin:24px 0 8px 0;font-size:17px}
+  h3{color:#ffd08a;margin:16px 0 6px 0;font-size:14px}
+  p{margin:8px 0;color:#c8d3ec;font-size:14px}
+  code{background:#1c2d50;color:#5acc8a;padding:2px 6px;border-radius:3px;font-size:12px;font-family:Consolas,monospace}
+  pre{background:#101b30;padding:14px;border-radius:8px;overflow-x:auto;border:1px solid #22305c}
+  pre code{background:none;padding:0}
+  ul,ol{padding-left:24px;color:#c8d3ec}
+  li{margin:4px 0}
+  strong{color:#fff}
+  .src{color:#89b0ff;font-size:12px;font-family:Consolas,monospace;display:block;margin:4px 0}
+  .note{background:rgba(90,138,255,0.1);border-left:3px solid #5a8aff;padding:12px 16px;margin:12px 0;border-radius:0 6px 6px 0;font-size:13px}
+  .warn{background:rgba(224,85,106,0.1);border-left:3px solid #e0556a;padding:12px 16px;margin:12px 0;border-radius:0 6px 6px 0;font-size:13px}
+  .opt{background:rgba(90,204,138,0.1);border-left:3px solid #5acc8a;padding:12px 16px;margin:12px 0;border-radius:0 6px 6px 0;font-size:13px}
+  table{border-collapse:collapse;margin:12px 0;width:100%}
+  th,td{border:1px solid #22305c;padding:8px 12px;text-align:left;font-size:13px}
+  th{background:#152040;color:#7ee0ff}
+  td{color:#c8d3ec}
+  hr{border:0;border-top:1px solid #22305c;margin:32px 0}
+  .direction{display:inline-block;padding:2px 10px;border-radius:10px;font-size:11px;font-weight:bold;margin-right:8px}
+  .dir-server{background:rgba(170,68,68,0.2);color:#e0556a}
+  .dir-client{background:rgba(74,104,179,0.2);color:#5a8aff}
+  .dir-multi{background:rgba(139,93,184,0.2);color:#a78bfa}
+</style>
+</head>
+<body>
+<h1>UE 网络时序 · RPC 三种方向</h1>
+<p>通过时序详解 UE RPC 三种方向的全流程：Server RPC (AutonomousProxy -> Authority)、Client RPC (Authority -> AutonomousProxy)、Multicast RPC (Authority -> 所有客户端)。</p>
+
+<h2>三种方向对比</h2>
+<table>
+<tr><th>方向</th><th>发送者</th><th>接收者</th><th>典型场景</th></tr>
+<tr><td>Server RPC</td><td>AutonomousProxy</td><td>Authority</td><td>玩家开火/拾取/交互</td></tr>
+<tr><td>Client RPC</td><td>Authority</td><td>AutonomousProxy</td><td>伤害提示/UI效果</td></tr>
+<tr><td>Multicast</td><td>Authority</td><td>所有相关客户端</td><td>爆炸/环境音效/广播消息</td></tr>
+</table>
+
+<hr>
+
+<h2><span class="direction dir-server">Server RPC</span> 客户端 -> 服务端</h2>
+
+<h3>调用入口</h3>
+<p>玩家按下开火键 -> 客户端调 <code>ServerFire()</code>。只能从 AutonomousProxy 端调用（SimulatedProxy 上调会被丢弃）。</p>
+
+<h3>UHT Thunk 检测</h3>
+<p>UHT 生成的 ServerFire 会先检查 GetNetMode() != NM_Client：服务端调 -> 直接跳到 Implementation（本地执行）；客户端调 -> 走网络路径。</p>
+<span class="src">Runtime/Engine/Private/Actor.cpp:5242</span>
+
+<h3>RPC 上传</h3>
+<p>FUNC_NetReliable 则 Bunch.bReliable=1，存入 OutRec 链表等 ACK，丢包自动重发。不可靠 Server RPC 不入 OutRec。</p>
+
+<h3>Validate 安全校验</h3>
+<div class="warn">
+带 <strong>WithValidation</strong> 的 Server RPC 必须先跑 <code>ServerXXX_Validate</code>。返回 false -> 服务器<strong>直接踢出该客户端</strong>。<br><br>
+典型防作弊：客户端上报 "伤害 999999" -> Validate 检查上限 -> false -> 踢。
+</div>
+
+<h3>Implementation 执行</h3>
+<p>ProcessEvent -> Implementation 做权威判定：射线检测、伤害计算、扣弹药。改了 Replicated 属性会通过下一次同步分发给所有相关客户端。</p>
+
+<hr>
+
+<h2><span class="direction dir-client">Client RPC</span> 服务端 -> 拥有者客户端</h2>
+
+<h3>派发</h3>
+<p>通过 Actor->GetNetConnection() 找目标（通常是 PlayerController 的 NetConnection）。找不到 -> 静默丢弃。</p>
+
+<h3>私密性保障</h3>
+<div class="note">
+只发一份到 AutonomousProxy 那个连接。<strong>SimulatedProxy 端永远收不到别人的 Client RPC</strong>——数据私密性的天然保障。
+</div>
+
+<h3>客户端执行</h3>
+<p>客户端播放伤害数字飘字、震屏、红屏效果——纯表现层，不改 Replicated 状态。</p>
+
+<hr>
+
+<h2><span class="direction dir-multi">Multicast RPC</span> 服务端 -> 所有相关客户端</h2>
+
+<h3>队列优化</h3>
+<div class="opt">
+源码关键优化：不可靠 Multicast <strong>不立即发</strong>，而是入队 <code>QueuedExportBunches</code>，等下一次 ReplicateActor 时和属性同步一起发——省 Bunch header + 增加 UDP 合批率。
+</div>
+<span class="src">Runtime/Engine/Private/NetDriver.cpp:2820</span>
+
+<h3>注意事项</h3>
+<ul>
+<li>也遵循网络相关性——远处客户端如果对该 Actor 无 Channel 就收不到</li>
+<li>服务端会为每个相关 Connection 各生成一份 Bunch（不是"一份广播"）</li>
+<li>服务端自己也执行一次 Implementation（NM_ListenServer 场景）</li>
+<li>若需要所有玩家状态一致：推荐 <strong>服务端改 Replicated 属性 + Multicast 只做特效</strong></li>
+</ul>
+
+<hr>
+
+<h2>通用：Bunch 打包与 UDP 发送</h2>
+<p>所有 RPC 最终都走：</p>
+<ol>
+<li>UActorChannel::SendBunch -> 塞入 UNetConnection SendBuffer</li>
+<li>FlushNet -> 打包 PacketHeader + AckBits + Bunch 群</li>
+<li>UDP SendTo</li>
+<li>客户端 TickDispatch -> 解包 -> 派发到对应 UActorChannel</li>
+<li>ProcessBunch -> FRepLayout::ReceivePropertiesForRPC -> ProcessEvent -> Implementation</li>
+</ol>
+
+<div class="note">
+UE 的 UDP 包<strong>永远是复合包</strong>——一个 Packet 里可能塞属性同步 Bunch + 多个 RPC Bunch。
+</div>
+</body>
+</html>

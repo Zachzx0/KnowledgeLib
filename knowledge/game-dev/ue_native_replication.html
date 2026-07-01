@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>UE 原生同步 (Native Replication) 完整数据流</title>
+<style>
+  body{font-family:"Segoe UI","Microsoft YaHei",sans-serif;max-width:860px;margin:0 auto;padding:24px;background:#0a1220;color:#e0e8f8;line-height:1.8}
+  h1{color:#7ee0ff;border-bottom:1px solid #22305c;padding-bottom:12px;font-size:22px}
+  h2{color:#7ee0ff;margin:24px 0 8px 0;font-size:17px}
+  h3{color:#ffd08a;margin:16px 0 6px 0;font-size:14px}
+  p{margin:8px 0;color:#c8d3ec;font-size:14px}
+  code{background:#1c2d50;color:#5acc8a;padding:2px 6px;border-radius:3px;font-size:12px;font-family:Consolas,"Cascadia Code",monospace}
+  pre{background:#101b30;padding:14px;border-radius:8px;overflow-x:auto;border:1px solid #22305c;font-size:12px}
+  pre code{background:none;padding:0}
+  ul,ol{padding-left:24px;color:#c8d3ec}
+  li{margin:4px 0}
+  strong{color:#fff}
+  .src{color:#89b0ff;font-size:12px;font-family:Consolas,monospace;display:block;margin:4px 0}
+  .note{background:rgba(90,138,255,0.1);border-left:3px solid #5a8aff;padding:12px 16px;margin:12px 0;border-radius:0 6px 6px 0;font-size:13px}
+</style>
+</head>
+<body>
+<h1>UE 原生同步 (Native Replication) 完整数据流</h1>
+<p>从 UPROPERTY 声明到 UDP 发包的完整链路。核心复杂度 O(N x M)，Fortnite 之前所有 UE 产品都在用它。</p>
+
+<h2>1. 开发者接触面</h2>
+<p>两种方式：<code>UPROPERTY(Replicated)</code> + <code>GetLifetimeReplicatedProps</code> 声明属性同步；<code>UFUNCTION(Server, Reliable/Unreliable)</code> 声明 RPC。UHT 会为每个 UClass 生成 rep-layout 元数据。</p>
+
+<h2>2. PreReplication 钩子</h2>
+<p>每帧同步前调用，用于动态开关某些属性的同步（如 <code>DOREPLIFETIME_ACTIVE_OVERRIDE</code>）。</p>
+<span class="src">Runtime/Engine/Private/Actor.cpp</span>
+
+<h2>3. ServerReplicateActors 主循环</h2>
+<p>服务端每帧调用一次。子步骤：</p>
+<ol>
+<li><code>_PrepConnections</code> 更新每个连接的 Viewer</li>
+<li><code>_BuildConsiderList</code> 收集活跃 Actor</li>
+<li>遍历每个 Connection</li>
+<li><code>_PrioritizeActors</code> (NetPriority x 距离衰减)</li>
+<li><code>_ProcessPrioritizedActorsRange</code> 逐个复制</li>
+</ol>
+<span class="src">Runtime/Engine/Private/NetDriver.cpp:1520</span>
+
+<h2>4. BuildConsiderList</h2>
+<p>从 NetworkObjects 中筛出：不 Dormant 且 NextUpdateTime 到期的 Actor。这份列表被<strong>所有 Connection 共享</strong>——但每个连接还要各自算 IsRelevant，这就是 O(N x M) 的来源。</p>
+<span class="src">Runtime/Engine/Private/NetDriver.cpp:2009</span>
+
+<h2>5. PrioritizeActors</h2>
+<p>为每个 Connection 计算优先级：<code>Actor->NetPriority x (1 / DistanceSq) x TimeSinceLastUpdate</code>。带宽有限时按此排序，只发前 K 个。</p>
+
+<h2>6. UActorChannel::ReplicateActor</h2>
+<p>一个 Actor 一次同步的核心：</p>
+<ol>
+<li>首次同步 -> 序列化 Actor 类信息（生成通道）</li>
+<li>遍历 Actor + 所有 SubObject（Component）</li>
+<li>对每个 Object 调 <code>FObjectReplicator::ReplicateProperties</code></li>
+<li>用 <code>FRepLayout</code> diff 出改动位</li>
+<li>WriteContentBlockPayload 写入 Bunch</li>
+<li>SendBunch</li>
+</ol>
+<span class="src">Runtime/Engine/Classes/Engine/ActorChannel.h:194</span>
+
+<h2>7. FObjectReplicator 和 FRepLayout</h2>
+<h3>FObjectReplicator</h3>
+<p>每个被同步的 UObject（Actor/Component/SubObject）配一个 Replicator，缓存上次发送的 <strong>Shadow State</strong>。diff 时对比当前值与 Shadow 生成 changed handles。</p>
+
+<h3>FRepLayout (反射生成的字段布局)</h3>
+<p>类初始化时通过反射扫 <code>UPROPERTY(Replicated)</code> 生成 <code>FRepLayoutCmd</code> 序列（每个 Cmd 描述 offset+size+NetSerializeCallback）。</p>
+<p>核心方法：</p>
+<ul>
+<li><strong>DiffProperties</strong> - 对比新旧值</li>
+<li><strong>SendProperties</strong> - 写 Bit Stream</li>
+<li><strong>ReceiveProperties</strong> - 读并反序列化</li>
+<li><strong>SendPropertiesForRPC</strong> - RPC 参数序列化</li>
+</ul>
+<span class="src">Runtime/Engine/Private/Net/RepLayout.cpp</span>
+
+<h2>8. FOutBunch -> SendBunch -> FlushNet -> UDP</h2>
+<p>一个 Bunch = 一次逻辑消息（一次属性更新 / 一个 RPC）。带 header：ChannelIndex/bReliable/bOpen/bClose/PacketID。</p>
+<p>多个 Bunch 打包成一个 UDP Packet。可靠 Bunch 存入 OutRec 链表直到 ACK 才释放。大 Bunch 自动切成 PartialBunch。</p>
+<p>ACK 是<strong>捎带</strong>在下一个 Packet 头里的，不是独立包。</p>
+
+<h2>9. 客户端收包</h2>
+<p>客户端 Tick -> <code>UIpNetDriver::TickDispatch</code> -> <code>ReceivedRawPacket</code> -> 解包 header -> 拆出 Bunch -> 按 ChannelIndex 派发到对应 ActorChannel -> <code>ProcessBunch</code> -> <code>FRepLayout::ReceiveProperties</code> 反序列化并<b>直接写内存</b> -> 触发 <code>OnRep_XXX</code> 回调。</p>
+
+<h2>UNetDriver 核心类</h2>
+<ul>
+<li><strong>UNetDriver</strong> - 网络驱动主类，管理 ClientConnections，每 Tick 派发 ServerReplicateActors 和 ProcessRemoteFunction</li>
+<li><strong>UNetConnection</strong> - 代表一个客户端连接，持有 ActorChannel 数组、Bunch 打包缓冲、可靠性 ACK 记录</li>
+<li><strong>UActorChannel</strong> - 一个 Actor 一个 Channel，负责 ReplicateActor() 用 FRepLayout diff 后发送</li>
+<li><strong>FRepLayout</strong> - 反射生成的属性布局缓存，负责 diff/序列化/反序列化</li>
+</ul>
+
+<h2>性能特点</h2>
+<div class="note">
+<strong>优点</strong>：简单、稳定、Fortnite 之前的所有产品都用它。<br><br>
+<strong>缺点</strong>：O(N x M) 复杂度，Actor 多、玩家多时 CPU 爆炸。每帧遍历所有 Actor x 所有 Connection 做 IsRelevant 检查和属性 diff。
+</div>
+</body>
+</html>

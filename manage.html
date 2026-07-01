@@ -1,0 +1,743 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VibeLearn - 管理</title>
+<style>
+  :root {
+    --bg-primary: #0a1220;
+    --bg-secondary: #101b30;
+    --bg-card: #152040;
+    --bg-hover: #1c2d50;
+    --bg-active: #243668;
+    --border: #22305c;
+    --border-light: #2d4070;
+    --text-primary: #e0e8f8;
+    --text-secondary: #9db4d8;
+    --text-muted: #6b80a8;
+    --accent: #5a8aff;
+    --accent-light: #7ea6ff;
+    --accent-bg: rgba(90,138,255,0.15);
+    --success: #5acc8a;
+    --warning: #ffd08a;
+    --danger: #e0556a;
+    --radius: 8px;
+    --radius-lg: 12px;
+    --font: "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
+    --font-mono: "Cascadia Code", "Consolas", monospace;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-family: var(--font);
+    min-height: 100vh;
+    line-height: 1.5;
+  }
+
+  .toolbar {
+    padding: 12px 24px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-secondary);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+  .toolbar-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--accent-light);
+  }
+  .toolbar-spacer { flex: 1; }
+
+  .btn {
+    padding: 8px 16px;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    background: var(--bg-card);
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-size: 13px;
+    font-family: inherit;
+    transition: 0.2s;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+  }
+  .btn:hover { background: var(--bg-hover); border-color: var(--border-light); color: var(--text-primary); }
+  .btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn-primary:hover { background: var(--accent-light); border-color: var(--accent-light); }
+  .btn-danger { color: var(--danger); border-color: var(--danger); }
+  .btn-danger:hover { background: rgba(224,85,106,0.15); }
+
+  .container { max-width: 900px; margin: 0 auto; padding: 24px; }
+  .form-section { margin-bottom: 24px; }
+
+  .form-section-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--accent-light);
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .form-group { margin-bottom: 16px; }
+  .form-label {
+    display: block;
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-bottom: 6px;
+    font-weight: 500;
+  }
+  .form-input, .form-textarea, .form-select {
+    width: 100%;
+    padding: 10px 14px;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    background: var(--bg-card);
+    color: var(--text-primary);
+    font-size: 14px;
+    font-family: inherit;
+    outline: none;
+    transition: 0.2s;
+  }
+  .form-input:focus, .form-textarea:focus, .form-select:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-bg);
+  }
+  .form-textarea {
+    min-height: 200px;
+    resize: vertical;
+    font-family: var(--font-mono);
+    font-size: 13px;
+    line-height: 1.6;
+  }
+
+  .tag-input-wrap {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+  .tag-input-wrap .form-input { flex: 1; }
+  .current-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 8px;
+  }
+  .tag-badge {
+    font-size: 12px;
+    padding: 4px 10px;
+    border-radius: 12px;
+    background: var(--accent-bg);
+    color: var(--accent-light);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .tag-badge .remove-tag {
+    cursor: pointer;
+    font-size: 14px;
+    line-height: 1;
+    opacity: 0.7;
+  }
+  .tag-badge .remove-tag:hover { opacity: 1; }
+
+  /* Auto-classification panel */
+  .auto-classify-panel {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 16px;
+    margin-top: 12px;
+  }
+  .auto-classify-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+  }
+  .auto-classify-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--warning);
+  }
+  .suggestions-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .suggestion-item {
+    padding: 6px 12px;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    background: var(--bg-card);
+    cursor: pointer;
+    font-size: 12px;
+    color: var(--text-secondary);
+    transition: 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .suggestion-item:hover {
+    border-color: var(--accent);
+    background: var(--accent-bg);
+    color: var(--accent-light);
+  }
+  .suggestion-item.applied {
+    border-color: var(--success);
+    background: rgba(90,204,138,0.15);
+    color: var(--success);
+  }
+  .suggestion-score {
+    font-size: 10px;
+    color: var(--text-muted);
+    background: var(--bg-primary);
+    padding: 1px 6px;
+    border-radius: 8px;
+  }
+  .suggested-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid var(--border);
+  }
+  .suggested-tags-title {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-bottom: 6px;
+    width: 100%;
+  }
+  .suggested-tag {
+    font-size: 11px;
+    padding: 3px 10px;
+    border-radius: 12px;
+    border: 1px dashed var(--border);
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: 0.2s;
+  }
+  .suggested-tag:hover {
+    border-color: var(--accent);
+    color: var(--accent-light);
+  }
+  .suggested-tag.added {
+    border-style: solid;
+    border-color: var(--success);
+    color: var(--success);
+  }
+
+  /* Preview */
+  .preview-panel {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 16px;
+    margin-top: 16px;
+    background: var(--bg-primary);
+    min-height: 100px;
+    overflow-y: auto;
+    max-height: 400px;
+  }
+  .preview-panel h1, .preview-panel h2 { color: var(--accent-light); margin: 8px 0; }
+  .preview-panel h1 { font-size: 20px; }
+  .preview-panel h2 { font-size: 16px; }
+  .preview-panel p { color: var(--text-secondary); margin: 6px 0; font-size: 13px; line-height: 1.8; }
+  .preview-panel code { background: var(--bg-hover); color: var(--success); padding: 1px 5px; border-radius: 3px; font-family: var(--font-mono); font-size: 12px; }
+  .preview-panel pre { background: var(--bg-secondary); padding: 12px; border-radius: var(--radius); overflow-x: auto; margin: 8px 0; }
+  .preview-panel pre code { background: none; padding: 0; }
+
+  .form-hint {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: 4px;
+  }
+
+  .form-row { display: flex; gap: 16px; }
+  .form-row .form-group { flex: 1; }
+
+  .empty-state { text-align: center; padding: 60px 20px; color: var(--text-muted); }
+  .empty-state-icon { font-size: 48px; margin-bottom: 16px; opacity: 0.5; }
+
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  .toast-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 1000;
+  }
+  .toast {
+    padding: 10px 20px;
+    border-radius: var(--radius);
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    color: var(--text-primary);
+    font-size: 13px;
+    margin-bottom: 8px;
+    animation: toastIn 0.3s ease;
+    max-width: 360px;
+  }
+  .toast.success { border-color: var(--success); color: var(--success); }
+  .toast.error { border-color: var(--danger); color: var(--danger); }
+
+  @keyframes toastIn {
+    from { opacity: 0; transform: translateX(50px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+</style>
+</head>
+<body>
+
+<div class="toolbar">
+  <span class="toolbar-title">&#x270F; 知识片段管理</span>
+  <span class="toolbar-spacer"></span>
+  <a href="index.html" class="btn">&#x1F519; 返回知识库</a>
+  <button class="btn btn-primary" id="btnSave">&#x1F4BE; 保存片段</button>
+</div>
+
+<div class="container">
+  <form id="snippetForm">
+    <div class="form-section">
+      <div class="form-section-title">&#x1F4CB; 基本信息</div>
+
+      <div class="form-group">
+        <label class="form-label">标题 *</label>
+        <input type="text" class="form-input" id="inputTitle" placeholder="知识片段标题" required>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">摘要</label>
+        <input type="text" class="form-input" id="inputSummary" placeholder="简短描述该片段的核心内容">
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">分类</label>
+          <select class="form-select" id="inputCategory">
+            <option value="">-- 待分类 --</option>
+            <option value="programming">编程基础</option>
+            <option value="game-dev">游戏开发</option>
+            <option value="networking">网络</option>
+            <option value="architecture">架构设计</option>
+            <option value="ai-ml">AI / 机器学习</option>
+            <option value="frontend">前端开发</option>
+            <option value="backend">后端开发</option>
+            <option value="algorithm">算法与数学</option>
+            <option value="tools">工具与效率</option>
+            <option value="misc">杂项</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">关联 HTML 文件</label>
+          <input type="text" class="form-input" id="inputFile" placeholder="如: game-dev/ue_net.html (可选)">
+          <div class="form-hint">知识片段对应的 HTML 文件路径（相对于 knowledge/ 目录）</div>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">标签</label>
+        <div class="tag-input-wrap">
+          <input type="text" class="form-input" id="inputTag" placeholder="输入标签后按回车添加">
+          <button type="button" class="btn" id="btnAddTag">添加</button>
+        </div>
+        <div class="current-tags" id="tagList"></div>
+      </div>
+
+      <!-- 自动分类面板 -->
+      <div class="auto-classify-panel" id="classifyPanel" style="display:none;">
+        <div class="auto-classify-header">
+          <span class="auto-classify-title">&#x1F9E0; 自动分类建议</span>
+          <button type="button" class="btn" id="btnReAnalyze" style="font-size:11px;padding:4px 10px;">重新分析</button>
+        </div>
+        <div class="suggestions-list" id="suggestionsList"></div>
+        <div class="suggested-tags" id="suggestedTags">
+          <div class="suggested-tags-title">&#x1F3F7; 建议标签（点击添加）</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="form-section">
+      <div class="form-section-title">&#x1F4DD; 内容 (HTML / Markdown)</div>
+      <div class="form-group">
+        <textarea class="form-textarea" id="inputContent" placeholder="在此输入知识片段内容...支持 HTML 格式&#10;&#10;示例：&#10;<h1>标题</h1>&#10;<p>段落内容...</p>&#10;<pre><code>代码示例</code></pre>"></textarea>
+        <div class="form-hint">可直接粘贴 HTML 或纯文本。支持 Markdown 风格的简单标记。</div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">
+          <input type="checkbox" id="inputHasDiagram"> 包含 Canvas 图表
+        </label>
+      </div>
+    </div>
+
+    <div class="form-section" id="previewSection" style="display:none;">
+      <div class="form-section-title">&#x1F441; 预览</div>
+      <div class="preview-panel" id="previewPanel"></div>
+    </div>
+
+    <input type="hidden" id="inputId">
+  </form>
+</div>
+
+<div class="toast-container"></div>
+
+<script src="js/data.js"></script>
+<script src="js/category.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  const form = document.getElementById('snippetForm');
+  const inputId = document.getElementById('inputId');
+  const inputTitle = document.getElementById('inputTitle');
+  const inputSummary = document.getElementById('inputSummary');
+  const inputCategory = document.getElementById('inputCategory');
+  const inputFile = document.getElementById('inputFile');
+  const inputTag = document.getElementById('inputTag');
+  const inputContent = document.getElementById('inputContent');
+  const inputHasDiagram = document.getElementById('inputHasDiagram');
+  const tagList = document.getElementById('tagList');
+  const classifyPanel = document.getElementById('classifyPanel');
+  const suggestionsList = document.getElementById('suggestionsList');
+  const suggestedTags = document.getElementById('suggestedTags');
+  const previewSection = document.getElementById('previewSection');
+  const previewPanel = document.getElementById('previewPanel');
+  const btnSave = document.getElementById('btnSave');
+  const btnReAnalyze = document.getElementById('btnReAnalyze');
+
+  let tags = [];
+  let classifyResult = null;
+
+  // 初始化
+  async function init() {
+    await KnowledgeDB.load();
+
+    // 检查 URL 参数，判断是编辑还是新增
+    const params = new URLSearchParams(window.location.search);
+    const editId = params.get('id');
+
+    if (editId) {
+      loadSnippet(editId);
+    }
+
+    bindEvents();
+  }
+
+  function loadSnippet(id) {
+    const snippet = KnowledgeDB.getById(id);
+    if (!snippet) return;
+
+    inputId.value = snippet.id;
+    inputTitle.value = snippet.title;
+    inputSummary.value = snippet.summary || '';
+    inputCategory.value = snippet.category || '';
+    inputFile.value = snippet.file || '';
+    inputContent.value = snippet.content || '';
+    inputHasDiagram.checked = snippet.hasDiagram || false;
+    tags = [...(snippet.tags || [])];
+    renderTags();
+
+    // 加载外部文件内容
+    if (snippet.file && !snippet.content) {
+      loadFileContent(snippet.file);
+    }
+
+    // 只在新增时分类
+    updatePreview();
+  }
+
+  async function loadFileContent(filePath) {
+    try {
+      const res = await fetch(`knowledge/${filePath}`);
+      if (res.ok) {
+        const html = await res.text();
+        // 提取 body 中的文本内容
+        const bodyMatch = html.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+        const content = bodyMatch ? bodyMatch[1] : html;
+        inputContent.value = content;
+        updatePreview();
+      }
+    } catch (e) {
+      console.warn('文件加载失败:', filePath);
+    }
+  }
+
+  function bindEvents() {
+    document.getElementById('btnAddTag').addEventListener('click', addTag);
+    inputTag.addEventListener('keydown', e => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        addTag();
+      }
+    });
+
+    inputTitle.addEventListener('input', debounce(runAutoClassify, 500));
+    inputSummary.addEventListener('input', debounce(runAutoClassify, 500));
+    inputContent.addEventListener('input', debounce(updatePreview, 300));
+    btnReAnalyze.addEventListener('click', runAutoClassify);
+    btnSave.addEventListener('click', saveSnippet);
+  }
+
+  function addTag() {
+    const val = inputTag.value.trim();
+    if (!val) return;
+    if (tags.includes(val)) {
+      inputTag.value = '';
+      return;
+    }
+    tags.push(val);
+    inputTag.value = '';
+    renderTags();
+    inputTag.focus();
+  }
+
+  function removeTag(tag) {
+    tags = tags.filter(t => t !== tag);
+    renderTags();
+  }
+
+  function renderTags() {
+    tagList.innerHTML = tags.map(tag => `
+      <span class="tag-badge">
+        ${escapeHtml(tag)}
+        <span class="remove-tag" data-tag="${escapeHtml(tag)}">&times;</span>
+      </span>
+    `).join('');
+
+    tagList.querySelectorAll('.remove-tag').forEach(btn => {
+      btn.addEventListener('click', () => removeTag(btn.dataset.tag));
+    });
+  }
+
+  function runAutoClassify() {
+    const title = inputTitle.value.trim();
+    const summary = inputSummary.value.trim();
+    const content = inputContent.value.trim();
+
+    // 需要足够信息才分类
+    const textLen = (title + summary + content).length;
+    if (textLen < 10) {
+      classifyPanel.style.display = 'none';
+      return;
+    }
+
+    classifyResult = CategoryEngine.autoClassify({
+      title: title,
+      summary: summary,
+      content: content,
+    });
+
+    renderClassifyPanel();
+  }
+
+  function renderClassifyPanel() {
+    if (!classifyResult) {
+      classifyPanel.style.display = 'none';
+      return;
+    }
+
+    classifyPanel.style.display = 'block';
+
+    // 分类建议
+    if (classifyResult.suggestions.length === 0) {
+      suggestionsList.innerHTML = '<span style="color:var(--text-muted);font-size:12px;">未匹配到明确分类</span>';
+    } else {
+      suggestionsList.innerHTML = classifyResult.suggestions.map(s => {
+        const isApplied = inputCategory.value === s.category;
+        return `
+          <div class="suggestion-item${isApplied ? ' applied' : ''}" data-category="${s.category}">
+            <span>${s.label}</span>
+            <span class="suggestion-score">${Math.round(s.score)}</span>
+          </div>
+        `;
+      }).join('');
+
+      suggestionsList.querySelectorAll('.suggestion-item').forEach(item => {
+        item.addEventListener('click', () => {
+          inputCategory.value = item.dataset.category;
+          renderClassifyPanel();
+        });
+      });
+    }
+
+    // 标签建议
+    const suggestedTagNames = CategoryEngine.suggestTags(
+      {
+        title: inputTitle.value.trim(),
+        summary: inputSummary.value.trim(),
+        content: inputContent.value.trim(),
+      },
+      classifyResult
+    );
+
+    const tagSuggestions = suggestedTagNames.filter(t => !tags.includes(t));
+
+    if (tagSuggestions.length === 0) {
+      suggestedTags.innerHTML = '<div class="suggested-tags-title">&#x1F3F7; 建议标签</div>' +
+        '<span style="color:var(--text-muted);font-size:11px;">无更多建议标签</span>';
+    } else {
+      suggestedTags.innerHTML = '<div class="suggested-tags-title">&#x1F3F7; 建议标签（点击添加）</div>' +
+        tagSuggestions.map(tag => `
+          <span class="suggested-tag" data-tag="${escapeHtml(tag)}">${escapeHtml(tag)}</span>
+        `).join('');
+
+      suggestedTags.querySelectorAll('.suggested-tag').forEach(el => {
+        el.addEventListener('click', () => {
+          const t = el.dataset.tag;
+          if (!tags.includes(t)) {
+            tags.push(t);
+            el.classList.add('added');
+            renderTags();
+          }
+        });
+      });
+    }
+
+    // 高置信度自动填入分类
+    if (classifyResult.confidence > 60 && !inputCategory.value) {
+      inputCategory.value = classifyResult.category;
+    }
+  }
+
+  function updatePreview() {
+    const content = inputContent.value.trim();
+    if (!content) {
+      previewSection.style.display = 'none';
+      return;
+    }
+
+    previewSection.style.display = 'block';
+    previewPanel.innerHTML = content;
+  }
+
+  async function saveSnippet() {
+    const title = inputTitle.value.trim();
+    if (!title) {
+      showToast('请输入标题', 'error');
+      return;
+    }
+
+    const snippetData = {
+      title: title,
+      summary: inputSummary.value.trim(),
+      category: inputCategory.value || 'misc',
+      tags: tags,
+      file: inputFile.value.trim(),
+      hasDiagram: inputHasDiagram.checked,
+      content: inputContent.value.trim(),
+    };
+
+    const id = inputId.value;
+    let saved;
+
+    if (id) {
+      saved = KnowledgeDB.update(id, snippetData);
+      if (saved) {
+        showToast('知识片段已更新', 'success');
+      }
+    } else {
+      saved = KnowledgeDB.add(snippetData);
+      showToast('知识片段已保存', 'success');
+      inputId.value = saved.id;
+
+      // 如果需要同时创建 HTML 文件
+      if (snippetData.content && !snippetData.file) {
+        const fileName = `${slugify(title)}.html`;
+        const filePath = `${saved.category}/${fileName}`;
+        KnowledgeDB.update(saved.id, { file: filePath });
+        inputFile.value = filePath;
+
+        // 提示创建文件
+        downloadHTMLFile(filePath, snippetData);
+      }
+    }
+  }
+
+  function downloadHTMLFile(filePath, data) {
+    const fullHTML = wrapSnippetHTML(data);
+    const blob = new Blob([fullHTML], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filePath.split('/').pop();
+    a.click();
+    URL.revokeObjectURL(url);
+
+    showToast('HTML 文件已生成，请保存到 knowledge/' + filePath, 'info');
+  }
+
+  function wrapSnippetHTML(data) {
+    return `<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="vibeLearn-id" content="${data.title}">
+<meta name="vibeLearn-category" content="${data.category}">
+<meta name="vibeLearn-tags" content="${data.tags.join(',')}">
+<title>${data.title}</title>
+<style>
+  body{font-family:"Segoe UI","Microsoft YaHei",sans-serif;max-width:800px;margin:0 auto;padding:20px;background:#0a1220;color:#e0e8f8;line-height:1.8}
+  pre{background:#101b30;padding:16px;border-radius:8px;overflow-x:auto}
+  code{background:#1c2d50;color:#5acc8a;padding:2px 6px;border-radius:3px}
+  pre code{background:none;padding:0}
+</style>
+</head>
+<body>
+${data.content}
+</body>
+</html>`;
+  }
+
+  function slugify(text) {
+    return text
+      .toLowerCase()
+      .replace(/[^a-z0-9\u4e00-\u9fff]+/g, '_')
+      .replace(/^_|_$/g, '')
+      .substring(0, 60);
+  }
+
+  function showToast(msg, type = 'info') {
+    const container = document.querySelector('.toast-container');
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    toast.textContent = msg;
+    container.appendChild(toast);
+    setTimeout(() => {
+      toast.style.opacity = '0';
+      toast.style.transition = 'opacity 0.3s';
+      setTimeout(() => toast.remove(), 300);
+    }, 2500);
+  }
+
+  function debounce(fn, delay) {
+    let timer;
+    return function (...args) {
+      clearTimeout(timer);
+      timer = setTimeout(() => fn.apply(this, args), delay);
+    };
+  }
+
+  function escapeHtml(str) {
+    const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+    return String(str).replace(/[&<>"']/g, c => map[c]);
+  }
+
+  document.addEventListener('DOMContentLoaded', init);
+})();
+</script>
+</body>
+</html>

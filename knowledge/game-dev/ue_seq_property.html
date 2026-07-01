@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>UE 网络时序·属性同步三端交互</title>
+<style>
+  body{font-family:"Segoe UI","Microsoft YaHei",sans-serif;max-width:860px;margin:0 auto;padding:24px;background:#0a1220;color:#e0e8f8;line-height:1.8}
+  h1{color:#7ee0ff;border-bottom:1px solid #22305c;padding-bottom:12px;font-size:22px}
+  h2{color:#7ee0ff;margin:24px 0 8px 0;font-size:17px}
+  h3{color:#ffd08a;margin:16px 0 6px 0;font-size:14px}
+  p{margin:8px 0;color:#c8d3ec;font-size:14px}
+  code{background:#1c2d50;color:#5acc8a;padding:2px 6px;border-radius:3px;font-size:12px;font-family:Consolas,monospace}
+  pre{background:#101b30;padding:14px;border-radius:8px;overflow-x:auto;border:1px solid #22305c}
+  pre code{background:none;padding:0}
+  ul,ol{padding-left:24px;color:#c8d3ec}
+  li{margin:4px 0}
+  strong{color:#fff}
+  .src{color:#89b0ff;font-size:12px;font-family:Consolas,monospace;display:block;margin:4px 0}
+  .note{background:rgba(90,138,255,0.1);border-left:3px solid #5a8aff;padding:12px 16px;margin:12px 0;border-radius:0 6px 6px 0;font-size:13px}
+  table{border-collapse:collapse;margin:12px 0;width:100%}
+  th,td{border:1px solid #22305c;padding:8px 12px;text-align:left;font-size:13px}
+  th{background:#152040;color:#7ee0ff}
+  td{color:#c8d3ec}
+  .timeline{display:flex;flex-direction:column;gap:4px;margin:12px 0;font-size:13px}
+  .tl-item{padding:6px 12px;border-radius:6px;border-left:3px solid}
+  .tl-auth{border-left-color:#a44;background:rgba(170,68,68,0.1)}
+  .tl-auto{border-left-color:#4a68b3;background:rgba(74,104,179,0.1)}
+  .tl-sim{border-left-color:#4d8f9c;background:rgba(77,143,156,0.1)}
+  .tl-label{display:inline-block;min-width:60px;color:#8899bb;font-size:11px;margin-right:8px}
+</style>
+</head>
+<body>
+<h1>UE 网络时序 · 属性同步三端交互</h1>
+<p>详细拆解属性同步时 Authority、AutonomousProxy、SimulatedProxy 三端的协作，包括 COND_OwnerOnly 条件分发差异、客户端不同处理方式（预测 vs 插值）、以及三端 NetRole 状态机。</p>
+
+<h2>三端角色</h2>
+<table>
+<tr><th>端</th><th>NetRole (Local/Remote)</th><th>职责</th></tr>
+<tr><td>Authority (DS)</td><td>ROLE_Authority / ROLE_SimulatedProxy</td><td>唯一权威，掌控所有属性</td></tr>
+<tr><td>AutonomousProxy</td><td>ROLE_AutonomousProxy / ROLE_Authority</td><td>有输入权，做预测，收数据纠错</td></tr>
+<tr><td>SimulatedProxy</td><td>ROLE_SimulatedProxy / ROLE_Authority</td><td>无输入权，纯观察，插值展示</td></tr>
+</table>
+
+<h2>时序流程</h2>
+
+<h3>阶段 1：服务端属性变更</h3>
+<div class="timeline">
+<div class="tl-item tl-auth"><span class="tl-label">Authority</span> Gameplay 逻辑改属性: HP -= 10</div>
+<div class="tl-item tl-auth"><span class="tl-label">Authority</span> UWorld::Tick -> UNetDriver::TickFlush (30Hz)</div>
+<div class="tl-item tl-auth"><span class="tl-label">Authority</span> ServerReplicateActors -> BuildConsiderList -> PrioritizeActors</div>
+<div class="tl-item tl-auth"><span class="tl-label">Authority</span> FRepLayout::DiffProperties (对比 Shadow State)</div>
+</div>
+
+<h3>阶段 2：分发到 AutonomousProxy</h3>
+<p>FOutBunch 含所有 dirty handle + 值，包括 COND_OwnerOnly 的属性（只发给它）。对角色移动，主要发的是"位置修正"。</p>
+
+<div class="timeline">
+<div class="tl-item tl-auto"><span class="tl-label">AutoProxy</span> ProcessBunch -> ReceiveProperties (直接写内存) -> OnRep_XXX</div>
+</div>
+
+<h3>阶段 3：分发到 SimulatedProxy</h3>
+<p>同一时刻但不同 Bunch。<strong>关键差异</strong>：</p>
+<ul>
+<li>不发 COND_OwnerOnly 属性（敏感数据如金币/装备详情）</li>
+<li>位置/血量/状态位一定发</li>
+<li>频率通常更低（远处 Actor 的 NetUpdateFrequency 会衰减）</li>
+</ul>
+
+<div class="timeline">
+<div class="tl-item tl-sim"><span class="tl-label">SimProxy</span> ProcessBunch -> 应用属性 -> 触发插值 (SmoothCorrection)</div>
+</div>
+<div class="note">
+SimulatedProxy 收到位置更新后<strong>不会瞬移</strong>——它把新位置存为<strong>目标</strong>，然后每帧插值过去（SmoothClientPosition）。这就是为什么"别人"看起来动作平滑。<br><br>
+没有输入预测，纯粹被服务器牵引。
+</div>
+
+<h2>三端分歧的产生点</h2>
+<p>每个 Connection 的每个 Actor 一次 diff。<strong>三端属性同步的分歧就在这里产生</strong>：对 AutonomousProxy 连接会算上 COND_OwnerOnly/COND_SimulatedOnly 的 flag；对 SimulatedProxy 连接 COND_OwnerOnly 属性会被过滤掉。</p>
+<span class="src">Runtime/Engine/Private/Net/RepLayout.cpp</span>
+
+<h2>Replication Condition 详解</h2>
+<table>
+<tr><th>Condition</th><th>行为</th></tr>
+<tr><td>COND_OwnerOnly</td><td>只发给拥有该 Actor 的连接</td></tr>
+<tr><td>COND_SkipOwner</td><td>除拥有者外所有人</td></tr>
+<tr><td>COND_SimulatedOnly</td><td>只发给 SimulatedProxy 端</td></tr>
+<tr><td>COND_AutonomousOnly</td><td>只发给 AutonomousProxy 端</td></tr>
+</table>
+
+<h2>客户端处理差异总结</h2>
+<table>
+<tr><th>端</th><th>输入</th><th>数据来源</th><th>处理方式</th></tr>
+<tr><td>AutonomousProxy</td><td>有输入权</td><td>本地预测 + 服务器纠错</td><td>预测优先，出错回滚</td></tr>
+<tr><td>SimulatedProxy</td><td>无输入权</td><td>服务器快照（~100ms 延迟）</td><td>插值平滑展示</td></tr>
+</table>
+
+<p><strong>源码参考</strong>：<code>Runtime/Engine/Classes/GameFramework/Actor.h:4539</code></p>
+</body>
+</html>

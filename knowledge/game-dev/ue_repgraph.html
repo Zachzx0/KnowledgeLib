@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>UE ReplicationGraph 空间分片架构详解</title>
+<style>
+  body{font-family:"Segoe UI","Microsoft YaHei",sans-serif;max-width:860px;margin:0 auto;padding:24px;background:#0a1220;color:#e0e8f8;line-height:1.8}
+  h1{color:#7ee0ff;border-bottom:1px solid #22305c;padding-bottom:12px;font-size:22px}
+  h2{color:#7ee0ff;margin:24px 0 8px 0;font-size:17px}
+  h3{color:#ffd08a;margin:16px 0 6px 0;font-size:14px}
+  p{margin:8px 0;color:#c8d3ec;font-size:14px}
+  code{background:#1c2d50;color:#5acc8a;padding:2px 6px;border-radius:3px;font-size:12px;font-family:Consolas,monospace}
+  pre{background:#101b30;padding:14px;border-radius:8px;overflow-x:auto;border:1px solid #22305c}
+  pre code{background:none;padding:0}
+  ul,ol{padding-left:24px;color:#c8d3ec}
+  li{margin:4px 0}
+  strong{color:#fff}
+  .src{color:#89b0ff;font-size:12px;font-family:Consolas,monospace;display:block;margin:4px 0}
+  .note{background:rgba(90,204,138,0.1);border-left:3px solid #5acc8a;padding:12px 16px;margin:12px 0;border-radius:0 6px 6px 0;font-size:13px}
+  .warn{background:rgba(255,208,138,0.1);border-left:3px solid #ffd08a;padding:12px 16px;margin:12px 0;border-radius:0 6px 6px 0;font-size:13px}
+</style>
+</head>
+<body>
+<h1>UE ReplicationGraph 空间分片架构详解</h1>
+<p>ReplicationGraph 实现了 <code>UReplicationDriver</code> 接口，接管原生的 ServerReplicateActors。通过空间网格分片、休眠管理、永远相关节点和动态频率等策略，将 CPU 复杂度从 O(N x M) 降到近似 O(k x M)。</p>
+<p>Fortnite 100 玩家大逃杀就是靠它扛下来的。</p>
+
+<h2>启动时构建 Graph</h2>
+<p>游戏启动时（<code>InitializeForWorld</code>）构建 Graph 拓扑：创建 GridSpatialization、AlwaysRelevant、Dormancy 等 Node，并通过 <code>AddGlobalGraphNode</code> 挂到根。不同游戏定制自己的 Graph 拓扑（Fortnite 有专门的 <code>UFortReplicationGraph</code>）。</p>
+<span class="src">Plugins/Runtime/ReplicationGraph/Source/Public/ReplicationGraph.h:36</span>
+
+<h2>Actor 分类注册</h2>
+<p>新 Actor Spawn 时，Graph 根据 <code>FClassReplicationInfo</code>（每个类的策略）路由到相应 Node：</p>
+<ul>
+<li>静态背景物 -> <code>Node_GridSpatialization2D</code></li>
+<li>玩家 PC -> <code>Node_AlwaysRelevant_ForConnection</code></li>
+<li>场景管理 -> <code>Node_ActorList</code>（全局）</li>
+<li>长时间不动 -> <code>Node_DormancyNode</code></li>
+</ul>
+
+<h2>核心 Node 类型</h2>
+
+<h3>Node_GridSpatialization2D - 空间网格分片</h3>
+<p><strong>Fortnite 大逃杀的关键节点</strong>。把整个 World 切成固定大小的 2D 格子（如 10000x10000），每个 Actor 按位置塞入对应格。Gather 时只查 Viewer 周围 3x3 格，复杂度从 O(N) 降到 O(常数)。</p>
+
+<h3>Node_DormancyNode - 休眠管理</h3>
+<p>处于 DORM_Initial / DORM_DormantAll 的 Actor 停止 poll。有属性变动时游戏代码调 <code>FlushNetDormancy</code> 唤醒。大量静态物件（房屋、装饰）默认 dormant，几乎不占 CPU。</p>
+<span class="src">Plugins/Runtime/ReplicationGraph/Source/Public/ReplicationGraph.h:483</span>
+
+<h3>Node_AlwaysRelevant_ForConnection - 永远相关</h3>
+<p>每个 Connection 有<b>独立</b>的一份此 Node。存放：该玩家的 PlayerController、Pawn、PlayerState。无需空间检测，永远列入同步列表。</p>
+
+<h3>Node_DynamicSpatialFrequency - 动态频率</h3>
+<p>根据 Actor 到 Viewer 的距离动态调整 NetUpdateFrequency：近处 30Hz -> 中距 10Hz -> 远处 1Hz。类似 LOD。</p>
+
+<h2>核心流程</h2>
+
+<h3>ServerReplicateActors (重写主循环)</h3>
+<p>继承自 <code>UReplicationDriver</code>，被 UNetDriver 通过 SetReplicationDriver 挂上。整个 Tick 流程：</p>
+<ol>
+<li>Prepare（更新每个 Node）</li>
+<li>遍历每个 Connection</li>
+<li>对每 Connection 调各 Node 的 GatherActorListsForConnection（关键剪枝）</li>
+<li>合并结果 -> 走原生 UActorChannel 发送</li>
+</ol>
+<span class="src">Plugins/Runtime/ReplicationGraph/Source/Public/BasicReplicationGraph.h:57</span>
+
+<h3>GatherActorListsForConnection - 关键剪枝点</h3>
+<p>每个 Node 各自实现。传入 <code>FConnectionGatherActorListParameters</code>（Viewer 位置/连接ID/输出列表引用）。GridSpatialization2D 只把 Viewer 周围 3x3 格 Actor 塞入 OutList；DormancyNode 只输出被唤醒的；AlwaysRelevant 无脑输出。</p>
+
+<h2>底层复用</h2>
+<div class="warn">
+RepGraph <strong>只是替换了"选谁"的策略</strong>。Gather 出来的候选列表最终仍然：每个 Actor -> 找/创建 UActorChannel -> ReplicateActor() -> FRepLayout::SendProperties -> SendBunch，和原生同步共用一套发包底层。
+</div>
+
+<h2>性能收益：O(N x M) -> O(k x M)</h2>
+<div class="note">
+<strong>原生</strong>：每帧 N 个 Actor x M 个 Connection 的 IsRelevant 检查<br>
+<strong>RepGraph</strong>：每 Connection 只从少数 Node 拿相关列表，k 远小于 N<br><br>
+Fortnite 100 玩家场景（N 约 20000, M=100），CPU 从"服务器炸"降到可接受。
+</div>
+
+<h2>优缺点</h2>
+<ul>
+<li><strong>优点</strong>：CPU 从 O(N x M) 降到接近 O(k x M)，其中 k 远小于 N</li>
+<li><strong>缺点</strong>：需要为每个游戏定制 Graph 拓扑，学习曲线陡峭</li>
+<li><strong>源码</strong>：<code>Plugins/Runtime/ReplicationGraph/Source/Public/ReplicationGraph.h</code></li>
+</ul>
+</body>
+</html>
