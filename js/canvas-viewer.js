@@ -196,21 +196,53 @@ const CanvasViewer = (() => {
 
   function onClick(e) {
     if (isDragging) return;
-    const pos = screenToWorld(e.clientX, e.clientY);
+    const rect = canvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+
+    // 序列图：命中 message hitbox
+    if (chartData && chartData.type === 'sequence') {
+      if (!chartData.messages) return;
+      // 从后往前命中（顶层优先）
+      for (let i = chartData.messages.length - 1; i >= 0; i--) {
+        const m = chartData.messages[i];
+        if (!m._hitbox) continue;
+        const b = m._hitbox;
+        if (mx >= b.x && mx <= b.x + b.w && my >= b.y && my <= b.y + b.h) {
+          if (typeof onNodeClick === 'function') {
+            onNodeClick({ label: m.label, detail: m.detail || { h: m.label, desc: '', src: '' } });
+          }
+          return;
+        }
+      }
+      return;
+    }
 
     if (nodePositions.length === 0) return;
 
-    // 查找被点击的节点
-    for (const node of nodePositions) {
-      const dx = pos.x - node.x;
-      const dy = pos.y - node.y;
-      const dist = Math.sqrt(dx * dx + dy * dy);
-      if (dist < nodeRadius) {
-        // 触发节点点击回调
-        if (typeof onNodeClick === 'function') {
-          onNodeClick(node);
+    // 从后往前命中（顶层优先）
+    for (let i = nodePositions.length - 1; i >= 0; i--) {
+      const node = nodePositions[i];
+
+      // 矩形节点
+      if (node.w !== undefined && node.h !== undefined) {
+        const nx = node.x * scale + offsetX;
+        const ny = node.y * scale + offsetY;
+        const nw = node.w * scale;
+        const nh = node.h * scale;
+        if (mx >= nx && mx <= nx + nw && my >= ny && my <= ny + nh) {
+          if (typeof onNodeClick === 'function') onNodeClick(node);
+          return;
         }
-        break;
+      } else {
+        // 圆形节点
+        const s = worldToScreen(node.x, node.y);
+        const r = (node.radius || nodeRadius) * scale;
+        const dx = mx - s.x, dy = my - s.y;
+        if (dx * dx + dy * dy < r * r) {
+          if (typeof onNodeClick === 'function') onNodeClick(node);
+          return;
+        }
       }
     }
   }
@@ -305,13 +337,13 @@ const CanvasViewer = (() => {
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
 
     if (chartData.type === 'sequence') {
-      // 序列图：基于泳道 x 和消息 y 计算
+      // 序列图：泳道标题在 y=20-64，消息从 y>=104 开始
       for (const l of chartData.lanes) {
         minX = Math.min(minX, l.x - 160);
         maxX = Math.max(maxX, l.x + 160);
       }
-      minY = -30;
-      maxY = 60;
+      minY = 0;   // 顶部留出泳道标题空间
+      maxY = 120; // 标题框 + 间距
       const yScale = chartData.yScale || 1;
       for (const m of chartData.messages) {
         maxY = Math.max(maxY, m.y * yScale + 80);
@@ -633,8 +665,13 @@ const CanvasViewer = (() => {
     const laneMap = Object.fromEntries(chartData.lanes.map(l => [l.id, l]));
     const yScale = chartData.yScale || 1;
 
+    // 泳道标题区域：yMin ~ yMin+44，消息从 yMin+80 开始
+    const headerY = 20;            // 泳道标题框顶部
+    const headerH = 44;            // 标题框高度
+    const msgStartY = headerY + headerH + 40; // 消息起始 y（避开标题框）
+
     // 计算全局 y 范围
-    let yMin = 20, yMax = 60;
+    let yMax = msgStartY;
     for (const m of chartData.messages) {
       yMax = Math.max(yMax, m.y * yScale + 40);
     }
@@ -642,21 +679,21 @@ const CanvasViewer = (() => {
     // ---- 1. 绘制泳道生命线 ----
     for (const l of chartData.lanes) {
       const X = l.x * scale + offsetX;
-      const YTop = yMin * scale + offsetY;
+      const YTop = headerY * scale + offsetY;
       const YBottom = yMax * scale + offsetY;
 
-      // 生命线（虚线）
+      // 生命线（虚线，从标题框底部开始）
       ctx.strokeStyle = 'rgba(140,180,255,0.3)';
       ctx.lineWidth = 2;
       ctx.setLineDash([8, 6]);
       ctx.beginPath();
-      ctx.moveTo(X, YTop + 30);
+      ctx.moveTo(X, YTop + headerH * scale);
       ctx.lineTo(X, YBottom);
       ctx.stroke();
       ctx.setLineDash([]);
 
       // 泳道标题框
-      const boxW = 260 * scale, boxH = 44 * scale;
+      const boxW = 260 * scale, boxH = headerH * scale;
       ctx.fillStyle = 'rgba(0,0,0,0.35)';
       ctx.fillRect(X - boxW / 2 + 3, YTop + 4, boxW, boxH);
       ctx.fillStyle = l.color;
@@ -707,6 +744,9 @@ const CanvasViewer = (() => {
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText(m.label, (left + right) / 2, Y);
+
+      // 记录 hitbox（整个横幅区域）
+      m._hitbox = { x: left, y: Y - H / 2, w: right - left, h: H };
       return;
     }
 
@@ -767,6 +807,14 @@ const CanvasViewer = (() => {
 
     ctx.fillStyle = '#d0d8f0';
     ctx.fillText(m.label, midX, labelY);
+
+    // 记录 hitbox（标签区域，方便点击）
+    m._hitbox = {
+      x: midX - textW / 2 - padX,
+      y: labelY - fs / 2 - padY,
+      w: textW + padX * 2,
+      h: fs + padY * 2
+    };
   }
 
   function wrapText(text, maxWidth, fontSize) {

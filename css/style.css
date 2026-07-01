@@ -617,8 +617,108 @@ html, body {
   to { opacity: 1; transform: translateX(0); }
 }
 
+/* Node detail panel (浮动在 Canvas 上) */
+.node-detail-panel {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 380px;
+  max-height: calc(100% - 32px);
+  background: rgba(15, 22, 44, 0.96);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+  padding: 18px 20px;
+  overflow-y: auto;
+  box-shadow: -8px 0 24px rgba(0, 0, 0, 0.4);
+  transform: translateX(calc(100% + 20px));
+  transition: transform 0.25s ease;
+  z-index: 6;
+  backdrop-filter: blur(8px);
+  pointer-events: none;
+  opacity: 0;
+}
+
+.node-detail-panel.show {
+  transform: translateX(0);
+  pointer-events: auto;
+  opacity: 1;
+}
+
+.node-detail-close {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  background: var(--bg-active);
+  color: var(--text-primary);
+  border: 0;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+  padding: 0;
+  transition: var(--transition);
+}
+
+.node-detail-close:hover {
+  background: var(--danger);
+  color: #fff;
+}
+
+.node-detail-content h2 {
+  color: var(--accent-light);
+  font-size: 16px;
+  margin: 0 0 10px 0;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+  line-height: 1.4;
+  padding-right: 30px;
+}
+
+.node-detail-content h3 {
+  color: var(--warning);
+  font-size: 13px;
+  margin: 14px 0 6px 0;
+  font-weight: 600;
+}
+
+.node-detail-content .src-path {
+  color: var(--accent-light);
+  font-size: 11px;
+  font-family: var(--font-mono);
+  word-break: break-all;
+  background: var(--bg-primary);
+  padding: 5px 8px;
+  border-radius: 4px;
+  display: block;
+  margin: 3px 0;
+  border-left: 2px solid var(--accent);
+}
+
+.node-detail-content p {
+  font-size: 13px;
+  line-height: 1.75;
+  color: var(--text-secondary);
+  margin: 6px 0;
+}
+
+.node-detail-content code {
+  background: var(--bg-active);
+  color: var(--success);
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.node-detail-content b, .node-detail-content strong {
+  color: var(--text-primary);
+}
+
 /* Responsive */
 @media (max-width: 900px) {
   .sidebar { display: none; }
   .snippet-list-panel { width: 100%; min-width: unset; }
+  .node-detail-panel { width: calc(100% - 32px); }
 }

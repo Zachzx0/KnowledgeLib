@@ -80,8 +80,14 @@
             <button class="btn btn-icon" id="btnExport" title="导出图片">&#x1F4F7;</button>
           </div>
           <div class="canvas-legend">
-            <span style="font-size:11px;color:var(--text-muted);">&#x1F6C8; 拖拽平移 · 滚轮缩放 · 双击适应</span>
+            <span style="font-size:11px;color:var(--text-muted);">&#x1F6C8; 拖拽平移 · 滚轮缩放 · 双击适应 · 点击节点查看详解</span>
           </div>
+        </div>
+
+        <!-- 节点详情浮层 -->
+        <div class="node-detail-panel" id="nodeDetailPanel">
+          <button class="node-detail-close" id="nodeDetailClose">&times;</button>
+          <div class="node-detail-content" id="nodeDetailContent"></div>
         </div>
 
         <!-- HTML 详情视图 -->

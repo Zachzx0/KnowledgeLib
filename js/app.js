@@ -406,9 +406,32 @@
     switchView(tab.dataset.view);
   }
 
+  // 节点点击 - 显示详情面板
+  const nodeDetailPanel = $('#nodeDetailPanel');
+  const nodeDetailContent = $('#nodeDetailContent');
+  const nodeDetailClose = $('#nodeDetailClose');
+
   function handleNodeClick(node) {
-    // Canvas 节点点击 - 可在详情面板显示对应信息
-    console.log('Node clicked:', node);
+    const d = node.detail || { h: node.label, desc: '', src: '' };
+    const srcHtml = d.src
+      ? `<h3>📁 源码位置</h3>${d.src.split('\n').filter(s => s.trim()).map(s => `<span class="src-path">${escapeHtml(s)}</span>`).join('')}`
+      : '';
+    const descHtml = d.desc
+      ? `<h3>💡 详解</h3><p>${d.desc}</p>`
+      : '<p style="color:var(--text-muted);">（无更多说明）</p>';
+
+    nodeDetailContent.innerHTML = `
+      <h2>${escapeHtml(d.h || node.label || '')}</h2>
+      ${srcHtml}
+      ${descHtml}
+    `;
+    nodeDetailPanel.classList.add('show');
+  }
+
+  if (nodeDetailClose) {
+    nodeDetailClose.addEventListener('click', () => {
+      nodeDetailPanel.classList.remove('show');
+    });
   }
 
   // 更新片段列表选中
