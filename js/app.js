@@ -213,12 +213,15 @@
     }
 
     // 渲染内容
-    if (liveContent) {
-      renderLiveContent(liveContent);
-      extractAndLoadChart(liveContent);
-    } else if (embeddedChart) {
-      // 有嵌入图表数据：显示 Canvas 视图 + iframe 内容（供切换到"详情"使用）
+    // 图表数据：优先嵌入数据，回退到从抓取的 HTML 提取
+    // 详情视图：统一用 iframe 加载（保留完整样式与脚本，与本地行为一致）
+    if (embeddedChart) {
       CanvasViewer.loadChart(embeddedChart);
+    } else if (liveContent) {
+      extractAndLoadChart(liveContent);
+    }
+
+    if (embeddedChart || liveContent || snippet.hasDiagram) {
       canvasContainer.style.display = 'flex';
       htmlView.style.display = 'none';
       if (snippet.file) {
@@ -289,25 +292,6 @@
     } else {
       CanvasViewer.loadChart(null);
     }
-  }
-
-  // 渲染实时 HTML 内容
-  function renderLiveContent(html) {
-    // 提取 body 内容
-    const bodyMatch = html.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
-    const bodyContent = bodyMatch ? bodyMatch[1] : html;
-
-    // 移除 canvas 和 script 标签（图表由 CanvasViewer 处理）
-    const cleaned = bodyContent
-      .replace(/<canvas[^>]*>[\s\S]*?<\/canvas>/gi, '')
-      .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '');
-
-    // 移除 body 直接元素中的 canvas 样式引用
-    const content = cleaned.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '');
-
-    htmlView.innerHTML = content;
-    canvasContainer.style.display = 'flex';
-    htmlView.style.display = 'none';
   }
 
   function loadExistingHTML(file) {
