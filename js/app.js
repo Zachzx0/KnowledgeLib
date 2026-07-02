@@ -66,6 +66,7 @@
     tagCloud.addEventListener('click', handleTagClick);
     snippetList.addEventListener('click', handleSnippetListClick);
     viewTabs.addEventListener('click', handleViewTabClick);
+    htmlView.addEventListener('click', handleHtmlViewClick);
 
     btnFit.addEventListener('click', () => CanvasViewer.fitToView());
     btnReset.addEventListener('click', () => CanvasViewer.resetView());
@@ -147,10 +148,13 @@
       const catLabel = cat ? cat.label : s.category;
       const isSelected = currentSnippet && currentSnippet.id === s.id ? ' selected' : '';
 
+      const sourceBadge = s.source === 'wiki' ? '<span class="snippet-card-source">Wiki</span>' : '';
+
       return `
         <div class="snippet-card${isSelected}" data-id="${s.id}">
           <div class="snippet-card-header">
             <span class="snippet-card-title">${SearchEngine.highlight(s.title, query)}</span>
+            ${sourceBadge}
             <span class="snippet-card-date">${s.createdAt}</span>
           </div>
           <div class="snippet-card-summary">${SearchEngine.highlight(s.summary || '', query)}</div>
@@ -176,17 +180,22 @@
 
     // 更新详情头部
     const cat = CategoryEngine.getCategory(snippet.category);
+    const isWiki = snippet.source === 'wiki';
+    const actionHtml = isWiki && snippet.file
+      ? `<a href="${snippet.file}" class="btn btn-sm" target="_blank">&#x1F517; 打开 Markdown</a>`
+      : `<a href="manage.html?id=${snippet.id}" class="btn btn-sm">&#x270F; 编辑</a>`;
+
     detailHeader.innerHTML = `
       <div class="detail-header-info">
-        <h2>${snippet.title}</h2>
+        <h2>${escapeHtml(snippet.title)}</h2>
         <div class="detail-header-meta">
-          <span>${cat ? cat.icon + ' ' + cat.label : snippet.category}</span>
-          <span>${snippet.createdAt}</span>
-          ${snippet.tags.map(t => `<span class="meta-tag">${t}</span>`).join('')}
+          <span>${cat ? cat.icon + ' ' + cat.label : escapeHtml(snippet.category)}</span>
+          <span>${escapeHtml(snippet.createdAt || '')}</span>
+          ${(snippet.tags || []).map(t => `<span class="meta-tag">${escapeHtml(t)}</span>`).join('')}
         </div>
       </div>
       <div class="detail-header-actions">
-        <a href="manage.html?id=${snippet.id}" class="btn btn-sm">&#x270F; 编辑</a>
+        ${actionHtml}
       </div>
     `;
 
@@ -194,7 +203,7 @@
     liveContent = null;
     let fetchOk = false;
 
-    if (snippet.file) {
+    if (snippet.file && !isWiki) {
       try {
         const res = await fetch(`knowledge/${snippet.file}`);
         if (res.ok) {
@@ -221,7 +230,13 @@
       extractAndLoadChart(liveContent);
     }
 
-    if (embeddedChart || liveContent || snippet.hasDiagram) {
+    if (isWiki || snippet.contentType === 'markdown') {
+      htmlView.innerHTML = renderMarkdown(snippet.content || '', snippet.file || '');
+      canvasContainer.style.display = 'none';
+      htmlView.style.display = 'block';
+      viewTabs.style.display = 'none';
+      CanvasViewer.loadChart(null);
+    } else if (embeddedChart || liveContent || snippet.hasDiagram) {
       canvasContainer.style.display = 'flex';
       htmlView.style.display = 'none';
       if (snippet.file) {
@@ -255,7 +270,11 @@
     }
 
     // 更新视图
-    if (embeddedChart || snippet.hasDiagram || liveContent) {
+    if (isWiki || snippet.contentType === 'markdown') {
+      viewTabs.style.display = 'none';
+      canvasContainer.style.display = 'none';
+      htmlView.style.display = 'block';
+    } else if (embeddedChart || snippet.hasDiagram || liveContent) {
       viewTabs.style.display = 'flex';
       switchView('canvas');
     } else {
@@ -307,6 +326,149 @@
       <div class="empty-state-text">选择一个知识片段查看详情</div>
       <div class="empty-state-hint">点击左侧列表中的条目</div>
     </div>`;
+  }
+
+  function renderMarkdown(markdown, filePath) {
+    const body = stripFrontmatter(String(markdown || ''));
+    const fileHtml = filePath
+      ? `<div class="wiki-file-path">Wiki 源文件：<code>${escapeHtml(filePath)}</code></div>`
+      : '';
+    return `<article class="markdown-body">${fileHtml}${markdownBlocksToHtml(body)}</article>`;
+  }
+
+  function stripFrontmatter(markdown) {
+    return markdown.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n?/, '');
+  }
+
+  function markdownBlocksToHtml(markdown) {
+    const lines = markdown.split(/\r?\n/);
+    const html = [];
+    let i = 0;
+
+    while (i < lines.length) {
+      const line = lines[i];
+      const trimmed = line.trim();
+
+      if (!trimmed) {
+        i++;
+        continue;
+      }
+
+      if (trimmed.startsWith('```')) {
+        const lang = trimmed.slice(3).trim();
+        const code = [];
+        i++;
+        while (i < lines.length && !lines[i].trim().startsWith('```')) {
+          code.push(lines[i]);
+          i++;
+        }
+        if (i < lines.length) i++;
+        html.push(`<pre><code class="language-${escapeHtml(lang)}">${escapeHtml(code.join('\n'))}</code></pre>`);
+        continue;
+      }
+
+      const heading = trimmed.match(/^(#{1,6})\s+(.+)$/);
+      if (heading) {
+        const level = heading[1].length;
+        html.push(`<h${level}>${inlineMarkdown(heading[2])}</h${level}>`);
+        i++;
+        continue;
+      }
+
+      if (/^[-*_]{3,}$/.test(trimmed)) {
+        html.push('<hr>');
+        i++;
+        continue;
+      }
+
+      if (trimmed.startsWith('>')) {
+        const quote = [];
+        while (i < lines.length && lines[i].trim().startsWith('>')) {
+          quote.push(lines[i].trim().replace(/^>\s?/, ''));
+          i++;
+        }
+        html.push(`<blockquote>${quote.map(inlineMarkdown).join('<br>')}</blockquote>`);
+        continue;
+      }
+
+      if (isTableStart(lines, i)) {
+        const tableLines = [];
+        while (i < lines.length && lines[i].trim().startsWith('|')) {
+          tableLines.push(lines[i].trim());
+          i++;
+        }
+        html.push(renderTable(tableLines));
+        continue;
+      }
+
+      if (/^[-*+]\s+/.test(trimmed)) {
+        const items = [];
+        while (i < lines.length && /^[-*+]\s+/.test(lines[i].trim())) {
+          items.push(lines[i].trim().replace(/^[-*+]\s+/, ''));
+          i++;
+        }
+        html.push(`<ul>${items.map(item => `<li>${inlineMarkdown(item)}</li>`).join('')}</ul>`);
+        continue;
+      }
+
+      if (/^\d+\.\s+/.test(trimmed)) {
+        const items = [];
+        while (i < lines.length && /^\d+\.\s+/.test(lines[i].trim())) {
+          items.push(lines[i].trim().replace(/^\d+\.\s+/, ''));
+          i++;
+        }
+        html.push(`<ol>${items.map(item => `<li>${inlineMarkdown(item)}</li>`).join('')}</ol>`);
+        continue;
+      }
+
+      const paragraph = [trimmed];
+      i++;
+      while (i < lines.length && lines[i].trim() && !isSpecialMarkdownLine(lines, i)) {
+        paragraph.push(lines[i].trim());
+        i++;
+      }
+      html.push(`<p>${inlineMarkdown(paragraph.join(' '))}</p>`);
+    }
+
+    return html.join('\n');
+  }
+
+  function isSpecialMarkdownLine(lines, i) {
+    const trimmed = lines[i].trim();
+    return trimmed.startsWith('```') || /^#{1,6}\s+/.test(trimmed) || /^[-*_]{3,}$/.test(trimmed) ||
+      trimmed.startsWith('>') || /^[-*+]\s+/.test(trimmed) || /^\d+\.\s+/.test(trimmed) || isTableStart(lines, i);
+  }
+
+  function isTableStart(lines, i) {
+    return lines[i] && lines[i].trim().startsWith('|') && lines[i + 1] && /^\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|?$/.test(lines[i + 1].trim());
+  }
+
+  function renderTable(lines) {
+    const rows = lines.map(parseTableRow);
+    const head = rows[0] || [];
+    const body = rows.slice(2);
+    return `<table><thead><tr>${head.map(cell => `<th>${inlineMarkdown(cell)}</th>`).join('')}</tr></thead><tbody>${body.map(row => `<tr>${row.map(cell => `<td>${inlineMarkdown(cell)}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+  }
+
+  function parseTableRow(line) {
+    return line.replace(/^\|/, '').replace(/\|$/, '').split('|').map(cell => cell.trim());
+  }
+
+  function inlineMarkdown(text) {
+    let html = escapeHtml(text);
+    html = html.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (_, alt, url) => `<img alt="${escapeHtml(alt)}" src="${safeUrl(url)}">`);
+    html = html.replace(/\[\[([^\]]+)\]\]/g, (_, slug) => `<a href="#" class="wiki-link" data-wiki-link="${escapeHtml(slug)}">[[${escapeHtml(slug)}]]</a>`);
+    html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_, label, url) => `<a href="${safeUrl(url)}" target="_blank" rel="noopener noreferrer">${label}</a>`);
+    html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+    html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+    html = html.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+    return html;
+  }
+
+  function safeUrl(url) {
+    const value = String(url || '').trim();
+    if (/^javascript:/i.test(value)) return '#';
+    return escapeHtml(value);
   }
 
   // 切换视图
@@ -382,6 +544,25 @@
 
     const id = card.dataset.id;
     selectSnippet(id);
+  }
+
+  function handleHtmlViewClick(e) {
+    const link = e.target.closest('[data-wiki-link]');
+    if (!link) return;
+
+    e.preventDefault();
+    const slug = link.dataset.wikiLink;
+    const target = KnowledgeDB.getAll().find(s =>
+      s.wikiSlug === slug ||
+      s.id === `wiki-${slug}` ||
+      (s.file && s.file.endsWith(`/${slug}.md`))
+    );
+
+    if (target) {
+      selectSnippet(target.id);
+    } else {
+      showToast(`未找到 Wiki 页面：${slug}`, 'info');
+    }
   }
 
   function handleViewTabClick(e) {

@@ -84,6 +84,36 @@ const CategoryEngine = (() => {
         'profiler', 'log', 'monitor', 'test', 'deploy', 'plugin', 'extension',
         'shortcut', 'workflow', 'blueprint', 'build', 'package', 'cook', 'nativization'],
     },
+    'wiki-concept': {
+      label: 'Wiki 概念',
+      icon: '&#x1F4D8;',
+      keywords: ['wiki', 'concept', '概念'],
+    },
+    'wiki-entity': {
+      label: 'Wiki 实体',
+      icon: '&#x1F9E9;',
+      keywords: ['wiki', 'entity', '实体'],
+    },
+    'wiki-comparison': {
+      label: 'Wiki 对比',
+      icon: '&#x2696;&#xFE0F;',
+      keywords: ['wiki', 'comparison', '对比'],
+    },
+    'wiki-source': {
+      label: 'Wiki 来源摘要',
+      icon: '&#x1F4DD;',
+      keywords: ['wiki', 'source-summary', '来源摘要'],
+    },
+    'wiki-index': {
+      label: 'Wiki 索引',
+      icon: '&#x1F5C2;&#xFE0F;',
+      keywords: ['wiki', 'index', '索引'],
+    },
+    'wiki-overview': {
+      label: 'Wiki 综述',
+      icon: '&#x1F4DA;',
+      keywords: ['wiki', 'overview', '综述'],
+    },
     'misc': {
       label: '杂项',
       icon: '&#x1F4CA;',

@@ -2,7 +2,7 @@
 title: 三种同步方案横向对比 (Native vs ReplicationGraph vs Iris)
 type: comparison
 sources: [knowledge/game-dev/ue_networking_overview.html]
-related: [[[unetdriver]], [[uactorchannel]], [[fReplayout]], [property-replication-dataflow], [rpc-flow], [three-sync-approaches]]
+related: [[[unetdriver]], [[uactorchannel]], [[fReplayout]], [[property-replication-dataflow]], [[rpc-flow]], [[three-sync-approaches]], [[src-ue-networking-overview]]]
 created: 2026-07-02
 updated: 2026-07-02
 confidence: high

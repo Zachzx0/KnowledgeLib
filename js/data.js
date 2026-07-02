@@ -41,6 +41,7 @@ const KnowledgeDB = (() => {
         // 版本匹配则使用缓存
         if (embeddedVersion && cachedVersion === embeddedVersion) {
           snippets = parsed;
+          mergeRuntimeWikiSnippets();
           loaded = true;
           return snippets;
         }
@@ -48,6 +49,7 @@ const KnowledgeDB = (() => {
         const fetchVersion = await fetchIndexVersion();
         if (fetchVersion && cachedVersion === fetchVersion) {
           snippets = parsed;
+          mergeRuntimeWikiSnippets();
           loaded = true;
           return snippets;
         }
@@ -58,8 +60,24 @@ const KnowledgeDB = (() => {
 
     // 版本不匹配或无缓存，重新加载
     await reloadFromIndex();
+    mergeRuntimeWikiSnippets();
 
     return snippets;
+  }
+
+  function mergeRuntimeWikiSnippets() {
+    const runtimeData = window.VIBE_WIKI_DATA;
+    const wikiSnippets = runtimeData && Array.isArray(runtimeData.snippets) ? runtimeData.snippets : [];
+    if (!wikiSnippets.length) return;
+
+    const wikiIds = new Set(wikiSnippets.map(s => s.id));
+    const nonWiki = snippets.filter(s => s.source !== 'wiki' && !wikiIds.has(s.id));
+    snippets = [...nonWiki, ...wikiSnippets.map(s => ({
+      ...s,
+      tags: Array.isArray(s.tags) ? s.tags : [],
+      source: 'wiki',
+      contentType: s.contentType || 'markdown',
+    }))];
   }
 
   async function fetchIndexVersion() {

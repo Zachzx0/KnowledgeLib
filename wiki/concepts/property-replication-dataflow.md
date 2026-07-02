@@ -2,7 +2,7 @@
 title: 属性同步数据流 (Property Replication Dataflow)
 type: concept
 sources: [knowledge/game-dev/ue_networking_overview.html]
-related: [[[unetdriver]], [[uactorchannel]], [[fReplayout]], [rpc-flow], [three-sync-approaches]]
+related: [[[unetdriver]], [[uactorchannel]], [[fReplayout]], [[rpc-flow]], [[three-sync-approaches]], [[movement-prediction]], [[src-ue-networking-overview]]]
 created: 2026-07-02
 updated: 2026-07-02
 confidence: high
@@ -121,3 +121,4 @@ ReceiveProperties:
 - [[unetdriver]] — 主循环入口
 - [[uactorchannel]] — 单 Actor 同步通道
 - [[fReplayout]] — 属性布局 + 序列化引擎
+- [[movement-prediction]] — 与本页共享 Authority/AutonomousProxy/SimulatedProxy 三端角色模型

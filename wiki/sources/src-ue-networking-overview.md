@@ -2,7 +2,7 @@
 title: UE 网络同步可视化图谱(冷启动来源)
 type: source-summary
 sources: [knowledge/game-dev/ue_networking_overview.html]
-related: [[[property-replication-dataflow]], [[rpc-flow]], [[three-sync-approaches]], [[native-vs-repgraph-vs-iris]], [[unetdriver]], [[uactorchannel]], [[fReplayout]]]
+related: [[[property-replication-dataflow]], [[rpc-flow]], [[three-sync-approaches]], [[native-vs-repgraph-vs-iris]], [[unetdriver]], [[uactorchannel]], [[fReplayout]], [[movement-prediction]]]
 created: 2026-07-02
 updated: 2026-07-02
 confidence: high
@@ -72,3 +72,7 @@ UE 的 UDP 包永远是复合包(一个 Packet 里可能塞属性同步 Bunch + 
 - 这篇资料是**机制地图**,不是入门教程。需要先对 UE 网络有基础理解。
 - 9 个视图覆盖的是 UE5.4 为止的现状,Iris 部分(Experimental)可能在未来版本变化。
 - 没有覆盖:网络预测的具体数学(ClientAdjustPosition 的阈值算法)、Dedicated Server 部署、ListenServer 特殊路径。
+
+> ✅ 更新([2026-07-02] ingest 批量摄入):`seq_move` 视图提到的移动预测流程已在 [[movement-prediction]] 展开(来源 [[src-cmc-movement]])。但 **ClientAdjustPosition 的具体阈值数学仍是缺口**,两份来源都未给出。
+>
+> ℹ️ **冷启动破例已可解除**:本来源内容对应的正规 raw 文件 `raw/articles/UE_Networking_Visualization.html` 现已存在(与冷启动引用的 `knowledge/game-dev/ue_networking_overview.html` 同源)。后续如重新校订网络同步页面,应将 `sources` 改指该 raw 文件,不再引用 `knowledge/`。

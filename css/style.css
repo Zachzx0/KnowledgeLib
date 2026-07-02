@@ -435,6 +435,18 @@ html, body {
   margin-right: 4px;
 }
 
+.snippet-card-source {
+  flex-shrink: 0;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--success);
+  background: rgba(90, 204, 138, 0.12);
+  border: 1px solid rgba(90, 204, 138, 0.35);
+  border-radius: 10px;
+  padding: 1px 7px;
+  margin-top: 2px;
+}
+
 /* Detail / Canvas panel */
 .detail-panel {
   flex: 1;
@@ -525,6 +537,12 @@ html, body {
 .detail-html-view table { border-collapse: collapse; margin: 12px 0; width: 100%; }
 .detail-html-view th, .detail-html-view td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; font-size: 13px; }
 .detail-html-view th { background: var(--bg-card); color: var(--accent-light); }
+.detail-html-view .markdown-body { max-width: 980px; margin: 0 auto; }
+.detail-html-view .wiki-file-path { margin-bottom: 16px; color: var(--text-muted); font-size: 12px; }
+.detail-html-view .wiki-file-path code { color: var(--success); }
+.detail-html-view .wiki-link { color: var(--success); border-bottom: 1px dashed rgba(90, 204, 138, 0.55); }
+.detail-html-view .wiki-link:hover { color: var(--accent-light); text-decoration: none; border-bottom-color: var(--accent-light); }
+.detail-html-view img { max-width: 100%; border-radius: var(--radius); border: 1px solid var(--border); }
 
 /* Detail header */
 .detail-header {

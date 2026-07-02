@@ -16,7 +16,7 @@
 
 ## 快速上手
 
-1. 把资料放进 `raw/articles/`(网页剪藏为 `.md`)、`raw/papers/`(论文)、`raw/assets/`(图片)
+1. 把资料放进 `raw/articles/`(网页剪藏为 `.md`)、`raw/papers/`(论文)、`raw/assets/`(图片)；AI 生成的内容放入 `raw/AIGen/`
 2. 对我说"摄入 `<文件名>`" → 触发 ingest 流程
 3. 直接提问 → 触发 query 流程,好答案会提议归档
 4. 说"lint" → 触发健康检查

@@ -2,7 +2,7 @@
 title: 三种同步方案总览 (Three Sync Approaches)
 type: concept
 sources: [knowledge/game-dev/ue_networking_overview.html]
-related: [[[unetdriver]], [[uactorchannel]], [[fReplayout]], [property-replication-dataflow], [native-vs-repgraph-vs-iris]]
+related: [[[unetdriver]], [[uactorchannel]], [[fReplayout]], [[property-replication-dataflow]], [[native-vs-repgraph-vs-iris]], [[src-ue-networking-overview]]]
 created: 2026-07-02
 updated: 2026-07-02
 confidence: high

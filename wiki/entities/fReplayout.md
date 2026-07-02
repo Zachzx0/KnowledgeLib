@@ -2,7 +2,7 @@
 title: FRepLayout
 type: entity
 sources: [knowledge/game-dev/ue_networking_overview.html]
-related: [[[unetdriver]], [[uactorchannel]], [property-replication-dataflow], [rpc-flow]]
+related: [[[unetdriver]], [[uactorchannel]], [[property-replication-dataflow]], [[rpc-flow]], [[src-ue-networking-overview]]]
 created: 2026-07-02
 updated: 2026-07-02
 confidence: high

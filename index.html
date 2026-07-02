@@ -108,7 +108,7 @@
 
 <!-- 默认数据嵌入（解决 file:// 无法 fetch 的问题） -->
 <script id="vibe-default-data" type="application/json">
-{"version":"2.2","snippets":[
+{"version":"2.3-wiki","snippets":[
 {"id":"ue-net-overview-001","title":"UE 网络同步方案总览对比：原生 vs ReplicationGraph vs Iris","category":"game-dev","tags":["Unreal Engine","网络同步","Replication","ReplicationGraph","Iris","架构对比"],"file":"game-dev/ue_networking_overview.html","createdAt":"2026-07-01","hasDiagram":true,"chartDataId":"chart-ue-net-overview-001","summary":"深入对比 UE 三种网络同步方案的架构差异：原生 UNetDriver + ActorChannel 的 O(NxM) 模式、ReplicationGraph 的空间分片优化、以及 Iris 的数据驱动现代化框架。"},
 {"id":"ue-native-repl-002","title":"UE 原生同步 (Native Replication) 完整数据流","category":"game-dev","tags":["Unreal Engine","原生同步","UNetDriver","ActorChannel","FRepLayout","FOutBunch","属性同步"],"file":"game-dev/ue_native_replication.html","createdAt":"2026-07-01","hasDiagram":true,"chartDataId":"chart-ue-native-repl-002","summary":"从 UPROPERTY 声明到 UDP 发包的完整链路：PreReplication -> ServerReplicateActors -> ReplicateActor -> FRepLayout diff -> SendBunch -> FlushNet -> 客户端 ProcessBunch。核心 O(NxM) 复杂度分析。"},
 {"id":"ue-repgraph-003","title":"UE ReplicationGraph 空间分片架构详解","category":"game-dev","tags":["Unreal Engine","ReplicationGraph","空间分片","Fortnite","UReplicationDriver","GridSpatialization"],"file":"game-dev/ue_repgraph.html","createdAt":"2026-07-01","hasDiagram":true,"chartDataId":"chart-ue-repgraph-003","summary":"通过空间网格分片、休眠管理、永远相关节点和动态频率，将 CPU 从 O(NxM) 降到 O(kxM)。Fortnite 100 玩家大逃杀的核心优化。"},
@@ -122,6 +122,7 @@
 </script>
 
 <script src="js/data.js"></script>
+<script src="js/wiki-data.js"></script>
 <script src="js/category.js"></script>
 <script src="js/search.js"></script>
 <script src="js/chart-data.js"></script>

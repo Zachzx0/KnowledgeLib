@@ -13,7 +13,7 @@
 | Wiki | `wiki/` | **LLM 写** | LLM 生成并维护的 Markdown 知识库。本文件所在层。 |
 | HTML 查看器 | `knowledge/` `index.html` `manage.html` `js/` `css/` | **不要动** | 现有的手工 HTML 知识查看器,是渲染产物,与 Wiki 解耦。 |
 
-`raw/` 子目录:`articles/`(网页/文章 Markdown)、`papers/`(论文 PDF/MD)、`assets/`(图片)。
+`raw/` 子目录:`articles/`(网页/文章 Markdown)、`papers/`(论文 PDF/MD)、`assets/`(图片)、`AIGen/`(AI Agent 生成的内容,如 HTML 可视化、代码输出等)。
 
 `wiki/` 子目录见下方 §3。
 
@@ -28,7 +28,7 @@
 title: 页面标题(可中文)
 type: concept | entity | source-summary | comparison
 sources: [raw/articles/xxx.md, raw/papers/yyy.pdf]   # 引用的 raw/ 文件,无则空数组
-related: [[[property-replication]], [[unetdriver]]]   # wiki 内部双链,无则空数组
+related: [[[property-replication-dataflow]], [[unetdriver]]]   # wiki 内部双链,无则空数组
 created: 2026-07-02
 updated: 2026-07-02
 confidence: high | medium | low                       # 结论置信度
@@ -37,7 +37,7 @@ confidence: high | medium | low                       # 结论置信度
 
 正文用 Markdown。技术名词保留英文原文(如 `UNetDriver`、`FRepLayout`、`ChangeMask`、`RepNotify`),叙述性文字用中文。
 
-文件名用 **kebab-case 英文**(如 `property-replication.md`、`unetdriver.md`),便于 `[[双链]]` 引用。`title` 字段可中文。
+文件名用 **kebab-case 英文**(如 `property-replication-dataflow.md`、`unetdriver.md`),便于 `[[双链]]` 引用。`title` 字段可中文。
 
 ---
 
@@ -45,7 +45,7 @@ confidence: high | medium | low                       # 结论置信度
 
 | 子目录 | 放什么 | type 值 |
 |---|---|---|
-| `concepts/` | 概念页:某项技术/机制的系统性说明(如 property-replication、rpc-flow、movement-prediction) | `concept` |
+| `concepts/` | 概念页:某项技术/机制的系统性说明(如 property-replication-dataflow、rpc-flow、movement-prediction) | `concept` |
 | `entities/` | 实体页:具体类/结构/系统(如 unetdriver、fReplayout、replicationgraph) | `entity` |
 | `sources/` | 来源摘要页:对一份 raw 资料的摘要 + 关键要点 + 与已有知识的关联 | `source-summary` |
 | `comparisons/` | 对比分析页:多来源横向对比(如 native-vs-repgraph-vs-iris) | `comparison` |
@@ -117,7 +117,7 @@ confidence: high | medium | low                       # 结论置信度
 # VibeLearn Wiki 索引
 
 ## 概念 Concepts
-- [[property-replication]] — 属性同步完整链路
+- [[property-replication-dataflow]] — 属性同步完整链路
 - [[rpc-flow]] — 三种 RPC 数据流
 
 ## 实体 Entities
@@ -149,7 +149,7 @@ confidence: high | medium | low                       # 结论置信度
 - **技术名词**:保留英文原文,不强行翻译(如 `UNetDriver` 不译作"网络驱动")
 - **文件名**:kebab-case 英文,`.md` 扩展
 - **标题 `title`**:可中文,可含英文术语
-- **双链**:`[[文件名不含扩展名]]`,如 `[[property-replication]]`
+- **双链**:`[[文件名不含扩展名]]`,如 `[[property-replication-dataflow]]`
 - **图片**:放入 `raw/assets/`,在 Wiki 中用相对路径引用 `![](../raw/assets/xxx.png)`
 
 ---
@@ -167,8 +167,13 @@ confidence: high | medium | low                       # 结论置信度
 
 ## 8. 与现有 HTML 查看器的关系
 
-VibeLearn 已有 `knowledge/` 下的 HTML 知识查看器(手工策展)。本轮 Wiki 是**平行新增**,不替代它。未来可能的桥接(本轮不做):
-- 从 Wiki Markdown 派生 HTML 片段,反向填充 `knowledge/`
-- 用 Wiki 作为"知识底座",HTML 作为"展示层"
+VibeLearn 已有 `knowledge/` 下的 HTML 知识查看器(手工策展)。Wiki 现在已通过轻量桥接接入 `index.html`,但仍保持职责分离:
 
-在桥接机制建立前,两套系统独立运行,不要在 Wiki 中直接引用 `knowledge/*.html` 作为来源——来源只能是 `raw/` 下的原始资料。
+- `wiki/` 是 LLM 维护的 Markdown 知识底座
+- `index.html` / `knowledge/` 是前端展示层
+- `tools/sync-wiki-to-knowledge.js` 会扫描 `wiki/**/*.md`,生成 `js/wiki-data.js`,并把 Wiki 条目合并进 `knowledge/index.json`
+- `index.html` 加载 `js/wiki-data.js` 后,会把 Wiki 条目与原有 HTML 知识片段混合展示
+- Wiki Markdown 在前端由内置 Markdown 渲染器显示,支持 `[[双链]]` 点击跳转
+
+注意:桥接不改变来源纪律。Wiki 页面中的 `sources` 仍应引用 `raw/` 下的原始资料;不要把 `knowledge/*.html` 当成常规来源,除非明确标注为冷启动/历史兼容例外。
+

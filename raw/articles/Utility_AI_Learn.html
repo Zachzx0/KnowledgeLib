@@ -1,0 +1,859 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Utility AI Learn Demo</title>
+  <style>
+    :root {
+      --bg: #f4f7fb;
+      --panel: rgba(255, 255, 255, 0.94);
+      --text: #1f2937;
+      --muted: #6b7280;
+      --line: #e5e7eb;
+      --blue: #2563eb;
+      --blue-soft: #eff6ff;
+      --green: #059669;
+      --green-soft: #ecfdf5;
+      --amber: #d97706;
+      --amber-soft: #fffbeb;
+      --red: #dc2626;
+      --red-soft: #fef2f2;
+      --purple: #7c3aed;
+      --purple-soft: #f5f3ff;
+      --shadow: 0 18px 42px rgba(15, 23, 42, 0.1);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 10% 0%, #dbeafe 0, transparent 34%),
+        radial-gradient(circle at 92% 12%, #ede9fe 0, transparent 26%),
+        var(--bg);
+      line-height: 1.6;
+    }
+
+    header {
+      max-width: 1220px;
+      margin: 0 auto;
+      padding: 46px 20px 22px;
+    }
+
+    h1 {
+      margin: 0 0 10px;
+      font-size: 42px;
+      letter-spacing: -0.04em;
+    }
+
+    h2 { margin: 0 0 14px; font-size: 22px; }
+    h3 { margin: 0 0 8px; font-size: 16px; }
+    p { margin: 0 0 12px; }
+
+    code {
+      background: #eef2ff;
+      color: #3730a3;
+      padding: 2px 6px;
+      border-radius: 7px;
+      font-size: 0.92em;
+    }
+
+    .subtitle {
+      max-width: 900px;
+      color: var(--muted);
+      font-size: 17px;
+    }
+
+    .layout {
+      max-width: 1220px;
+      margin: 0 auto 42px;
+      padding: 0 20px;
+      display: grid;
+      grid-template-columns: 360px 1fr;
+      gap: 18px;
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid rgba(229, 231, 235, 0.95);
+      border-radius: 18px;
+      box-shadow: var(--shadow);
+      padding: 18px;
+    }
+
+    .sticky { position: sticky; top: 16px; align-self: start; }
+    .section { margin-bottom: 18px; }
+    .hint { color: var(--muted); font-size: 14px; }
+
+    .grid { display: grid; gap: 12px; }
+    .two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+
+    .concept {
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: #fff;
+    }
+
+    .concept b { color: var(--blue); }
+
+    .formula {
+      padding: 16px;
+      border-radius: 16px;
+      border: 1px solid #bfdbfe;
+      background: var(--blue-soft);
+    }
+
+    .formula strong { color: var(--blue); }
+
+    .control {
+      padding: 13px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: #fff;
+    }
+
+    .control-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      font-weight: 800;
+      margin-bottom: 8px;
+    }
+
+    .control-value {
+      color: var(--blue);
+      font-variant-numeric: tabular-nums;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      accent-color: var(--blue);
+    }
+
+    select, button {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 11px 12px;
+      background: #fff;
+      color: var(--text);
+      font: inherit;
+    }
+
+    button {
+      cursor: pointer;
+      border-color: #bfdbfe;
+      background: var(--blue);
+      color: #fff;
+      font-weight: 800;
+      transition: transform 0.12s ease, opacity 0.12s ease;
+    }
+
+    button:hover { transform: translateY(-1px); }
+    button.secondary { background: #fff; color: var(--blue); }
+    button.warning { background: var(--amber); border-color: #fed7aa; }
+    button.danger { background: var(--red); border-color: #fecaca; }
+
+    .winner {
+      display: grid;
+      grid-template-columns: 88px 1fr;
+      gap: 16px;
+      align-items: center;
+      padding: 18px;
+      border-radius: 18px;
+      border: 1px solid #bbf7d0;
+      background: var(--green-soft);
+      margin-bottom: 16px;
+    }
+
+    .winner-icon {
+      width: 88px;
+      height: 88px;
+      display: grid;
+      place-items: center;
+      border-radius: 24px;
+      background: #fff;
+      font-size: 42px;
+      box-shadow: inset 0 0 0 1px #dcfce7;
+    }
+
+    .winner-score {
+      color: var(--green);
+      font-size: 34px;
+      font-weight: 900;
+      line-height: 1.1;
+    }
+
+    .summary {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .metric {
+      padding: 14px;
+      border-radius: 14px;
+      border: 1px solid var(--line);
+      background: #fff;
+    }
+
+    .metric span {
+      display: block;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .metric strong {
+      display: block;
+      font-size: 24px;
+      line-height: 1.2;
+    }
+
+    .action-list {
+      display: grid;
+      gap: 12px;
+    }
+
+    .action-card {
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 14px;
+      background: #fff;
+    }
+
+    .action-card.best {
+      border-color: #86efac;
+      box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.12);
+    }
+
+    .action-title {
+      display: grid;
+      grid-template-columns: 34px 1fr auto;
+      gap: 10px;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .emoji {
+      width: 34px;
+      height: 34px;
+      display: grid;
+      place-items: center;
+      border-radius: 10px;
+      background: var(--blue-soft);
+      font-size: 19px;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      border-radius: 999px;
+      padding: 3px 9px;
+      font-size: 12px;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .pill.best { background: #dcfce7; color: #166534; }
+    .pill.normal { background: #eef2ff; color: #3730a3; }
+    .pill.low { background: #f3f4f6; color: #4b5563; }
+
+    .bar-row {
+      display: grid;
+      grid-template-columns: 116px 1fr 48px;
+      gap: 10px;
+      align-items: center;
+      margin: 7px 0;
+      font-size: 13px;
+    }
+
+    .bar-track {
+      height: 9px;
+      overflow: hidden;
+      border-radius: 999px;
+      background: #eef2f7;
+    }
+
+    .bar-fill {
+      height: 100%;
+      width: 0;
+      border-radius: 999px;
+      background: linear-gradient(90deg, var(--blue), var(--purple));
+    }
+
+    .score-line {
+      display: grid;
+      grid-template-columns: 116px 1fr 58px;
+      gap: 10px;
+      align-items: center;
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px dashed var(--line);
+      font-weight: 900;
+    }
+
+    .matrix {
+      width: 100%;
+      border-collapse: collapse;
+      overflow: hidden;
+      border-radius: 14px;
+      font-size: 14px;
+    }
+
+    .matrix th,
+    .matrix td {
+      padding: 10px;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      vertical-align: top;
+    }
+
+    .matrix th {
+      background: #f8fafc;
+      color: #334155;
+      font-size: 13px;
+    }
+
+    .matrix tr:last-child td { border-bottom: none; }
+
+    .log {
+      max-height: 210px;
+      overflow: auto;
+      padding: 12px;
+      border-radius: 14px;
+      background: #0f172a;
+      color: #dbeafe;
+      font-family: Consolas, "SFMono-Regular", monospace;
+      font-size: 13px;
+    }
+
+    .log div { margin-bottom: 6px; }
+
+    .state-chip-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .state-chip {
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: #fff;
+      border: 1px solid var(--line);
+      font-size: 13px;
+    }
+
+    .state-chip.high { border-color: #fecaca; background: var(--red-soft); color: #991b1b; }
+    .state-chip.mid { border-color: #fde68a; background: var(--amber-soft); color: #92400e; }
+    .state-chip.good { border-color: #bbf7d0; background: var(--green-soft); color: #166534; }
+
+    .compare-card {
+      padding: 14px;
+      border-radius: 14px;
+      background: var(--purple-soft);
+      border: 1px solid #ddd6fe;
+    }
+
+    .compare-card b { color: var(--purple); }
+
+    @media (max-width: 960px) {
+      .layout { grid-template-columns: 1fr; }
+      .sticky { position: static; }
+      .summary, .two, .three { grid-template-columns: 1fr; }
+      .winner { grid-template-columns: 1fr; }
+      h1 { font-size: 32px; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Utility AI 交互式 Demo</h1>
+    <p class="subtitle">
+      Utility AI 的核心思想是：每一帧不直接问“现在该执行哪个固定分支”，而是让每个候选行为根据当前局势计算一个
+      <code>0~1</code> 的效用分数，分数最高的行为获得执行权。这个页面用一个“地牢冒险者”小模型演示完整决策过程。
+    </p>
+  </header>
+
+  <main class="layout">
+    <aside class="panel sticky">
+      <section class="section">
+        <h2>1. 世界状态</h2>
+        <p class="hint">拖动这些滑杆，观察右侧行为分数如何实时变化。</p>
+        <div id="controls" class="grid"></div>
+      </section>
+
+      <section class="section">
+        <h2>2. 场景预设</h2>
+        <div class="grid two" id="presets"></div>
+      </section>
+
+      <section class="section">
+        <h2>3. 决策设置</h2>
+        <label class="hint" for="aggregator">聚合方式</label>
+        <select id="aggregator">
+          <option value="multiply">乘法聚合：任一关键条件很低会强烈拖低总分</option>
+          <option value="average">加权平均：更平滑，适合弱约束行为</option>
+        </select>
+      </section>
+
+      <section class="section grid two">
+        <button id="tickBtn">执行一帧决策</button>
+        <button class="secondary" id="resetBtn">重置</button>
+      </section>
+
+      <section class="section grid two">
+        <button class="warning" id="autoBtn">自动播放</button>
+        <button class="danger" id="stopBtn">停止</button>
+      </section>
+
+      <p class="hint">执行一帧会让当前胜出行为反过来改变世界状态，用来观察 Utility AI 如何动态切换行为。</p>
+    </aside>
+
+    <section class="grid">
+      <div class="panel">
+        <h2>Utility AI 四件套</h2>
+        <div class="grid two">
+          <div class="concept"><b>Context</b><br>当前环境输入，例如生命值、敌人威胁、饥饿度、弹药量。</div>
+          <div class="concept"><b>Consideration</b><br>考量项，把某个输入映射成 <code>0~1</code> 分数，例如“生命越低，治疗越重要”。</div>
+          <div class="concept"><b>Action Score</b><br>一个行为会收集多个考量项，再用乘法或加权平均得到总分。</div>
+          <div class="concept"><b>Selection</b><br>选总分最高的行为执行；下一帧局势改变后重新评分，行为可能立刻切换。</div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div id="winner" class="winner"></div>
+        <div class="summary">
+          <div class="metric"><span>最高分行为</span><strong id="bestName">-</strong></div>
+          <div class="metric"><span>Utility</span><strong id="bestScore">0.00</strong></div>
+          <div class="metric"><span>第二名差距</span><strong id="scoreGap">0.00</strong></div>
+          <div class="metric"><span>决策帧</span><strong id="frameCount">0</strong></div>
+        </div>
+        <div class="formula">
+          <strong>本 demo 的打分公式：</strong><br>
+          每个考量项先算出 <code>rawScore</code>，再乘以权重 <code>weight</code>。乘法聚合时，行为总分约等于
+          <code>baseScore × ∏ weightedScore</code>；加权平均时，行为总分等于多个考量项的平均倾向。
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>当前状态摘要</h2>
+        <div id="stateChips" class="state-chip-list"></div>
+      </div>
+
+      <div class="panel">
+        <h2>行为评分排行榜</h2>
+        <div id="actions" class="action-list"></div>
+      </div>
+
+      <div class="panel">
+        <h2>考量项矩阵</h2>
+        <p class="hint">读这一表时，可以把每行理解为：“这个行为为什么在当前局势下值得或不值得做”。</p>
+        <table class="matrix">
+          <thead>
+            <tr>
+              <th>行为</th>
+              <th>考量项</th>
+              <th>解释</th>
+            </tr>
+          </thead>
+          <tbody id="matrixBody"></tbody>
+        </table>
+      </div>
+
+      <div class="panel">
+        <h2>Utility AI 和常见 AI 结构的区别</h2>
+        <div class="grid three">
+          <div class="compare-card"><b>行为树</b><br>像一套手写优先级流程。优点是可控；缺点是分支多后容易变硬、变长。</div>
+          <div class="compare-card"><b>GOAP</b><br>先定目标，再搜索动作链。适合需要“规划几步之后达成目标”的问题。</div>
+          <div class="compare-card"><b>Utility AI</b><br>给每个行为算即时收益。适合多个动机互相竞争、需要连续动态切换的场景。</div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>决策日志</h2>
+        <div id="log" class="log"></div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const clamp = (value, min = 0, max = 100) => Math.max(min, Math.min(max, value));
+    const normalize = value => clamp(value) / 100;
+    const inverse = value => 1 - normalize(value);
+    const highWhenLow = value => 1 - normalize(value);
+    const highWhenHigh = value => normalize(value);
+    const bell = (value, center, width) => Math.max(0, 1 - Math.abs(value - center) / width);
+    const round = value => Number(value).toFixed(2);
+
+    const defaultState = {
+      health: 46,
+      hunger: 62,
+      stamina: 58,
+      ammo: 28,
+      enemyThreat: 72,
+      lootValue: 44,
+      coverSafety: 34
+    };
+
+    const stateMeta = {
+      health: { label: "生命值", low: "危险", high: "健康" },
+      hunger: { label: "饥饿度", low: "不饿", high: "很饿" },
+      stamina: { label: "体力", low: "疲惫", high: "充足" },
+      ammo: { label: "弹药", low: "不足", high: "充足" },
+      enemyThreat: { label: "敌人威胁", low: "安全", high: "危险" },
+      lootValue: { label: "附近战利品", low: "没价值", high: "很值钱" },
+      coverSafety: { label: "掩体安全度", low: "无遮蔽", high: "安全" }
+    };
+
+    const presets = [
+      ["残血遇敌", { health: 18, hunger: 40, stamina: 38, ammo: 50, enemyThreat: 86, lootValue: 20, coverSafety: 24 }],
+      ["安全搜刮", { health: 82, hunger: 28, stamina: 76, ammo: 68, enemyThreat: 12, lootValue: 88, coverSafety: 70 }],
+      ["饥饿探索", { health: 65, hunger: 88, stamina: 54, ammo: 42, enemyThreat: 24, lootValue: 35, coverSafety: 56 }],
+      ["弹尽粮绝", { health: 54, hunger: 74, stamina: 45, ammo: 8, enemyThreat: 58, lootValue: 62, coverSafety: 38 }]
+    ];
+
+    const actions = [
+      {
+        id: "heal",
+        name: "治疗",
+        emoji: "🩹",
+        base: 0.92,
+        description: "生命越低、敌人越近，越应该优先治疗；但治疗也需要一点安全空间。",
+        considerations: [
+          c("生命低", "health", 1.15, highWhenLow, "生命越低，治疗收益越高"),
+          c("威胁高", "enemyThreat", 0.7, highWhenHigh, "危险越高，保命行为越紧急"),
+          c("掩体安全", "coverSafety", 0.45, highWhenHigh, "越安全越适合停下来治疗")
+        ],
+        effect(state) {
+          state.health = clamp(state.health + 28);
+          state.stamina = clamp(state.stamina - 6);
+          state.enemyThreat = clamp(state.enemyThreat + 4);
+        }
+      },
+      {
+        id: "attack",
+        name: "攻击敌人",
+        emoji: "⚔️",
+        base: 0.88,
+        description: "有敌人、有弹药、有体力且血量不太低时，攻击的效用最高。",
+        considerations: [
+          c("威胁高", "enemyThreat", 1.05, highWhenHigh, "没有威胁时攻击没有意义"),
+          c("弹药充足", "ammo", 0.95, highWhenHigh, "弹药越多越敢打"),
+          c("生命安全", "health", 0.85, highWhenHigh, "血太低时不适合硬拼"),
+          c("体力充足", "stamina", 0.55, highWhenHigh, "体力越高越能支撑战斗")
+        ],
+        effect(state) {
+          state.enemyThreat = clamp(state.enemyThreat - 26);
+          state.ammo = clamp(state.ammo - 16);
+          state.stamina = clamp(state.stamina - 12);
+          state.health = clamp(state.health - 6);
+        }
+      },
+      {
+        id: "flee",
+        name: "撤退找掩体",
+        emoji: "🏃",
+        base: 0.86,
+        description: "威胁高、生命低、掩体不安全时，撤退通常比攻击更合理。",
+        considerations: [
+          c("威胁高", "enemyThreat", 1.0, highWhenHigh, "威胁越高越需要拉开距离"),
+          c("生命低", "health", 0.9, highWhenLow, "生命越低越倾向撤退"),
+          c("掩体不安全", "coverSafety", 0.75, highWhenLow, "当前位置越危险越该换位"),
+          c("体力足够", "stamina", 0.55, highWhenHigh, "没有体力时撤退也困难")
+        ],
+        effect(state) {
+          state.enemyThreat = clamp(state.enemyThreat - 18);
+          state.coverSafety = clamp(state.coverSafety + 28);
+          state.stamina = clamp(state.stamina - 14);
+        }
+      },
+      {
+        id: "eat",
+        name: "进食恢复",
+        emoji: "🍖",
+        base: 0.78,
+        description: "饥饿越高越想吃；敌人太近时，吃饭的效用会被压低。",
+        considerations: [
+          c("饥饿高", "hunger", 1.1, highWhenHigh, "越饿越需要吃东西"),
+          c("周围安全", "enemyThreat", 0.75, highWhenLow, "威胁越低越适合进食"),
+          c("掩体安全", "coverSafety", 0.45, highWhenHigh, "越安全越适合恢复")
+        ],
+        effect(state) {
+          state.hunger = clamp(state.hunger - 30);
+          state.stamina = clamp(state.stamina + 18);
+          state.health = clamp(state.health + 5);
+        }
+      },
+      {
+        id: "reload",
+        name: "换弹补给",
+        emoji: "🔄",
+        base: 0.74,
+        description: "弹药越少越需要补给；如果敌人威胁非常高，换弹也会变得更紧迫。",
+        considerations: [
+          c("弹药低", "ammo", 1.05, highWhenLow, "弹药越少，补给价值越高"),
+          c("威胁中高", "enemyThreat", 0.65, value => Math.max(bell(value, 65, 55), 0.15), "有威胁时需要准备反击，但极端危险时可能该先逃"),
+          c("掩体安全", "coverSafety", 0.5, highWhenHigh, "安全位置更适合换弹")
+        ],
+        effect(state) {
+          state.ammo = clamp(state.ammo + 35);
+          state.enemyThreat = clamp(state.enemyThreat + 5);
+        }
+      },
+      {
+        id: "loot",
+        name: "搜刮战利品",
+        emoji: "💎",
+        base: 0.7,
+        description: "战利品价值高、局势安全、状态良好时，搜刮收益才高。",
+        considerations: [
+          c("战利品高", "lootValue", 1.15, highWhenHigh, "东西越值钱越值得冒险"),
+          c("周围安全", "enemyThreat", 0.9, highWhenLow, "危险越低越适合搜刮"),
+          c("生命安全", "health", 0.55, highWhenHigh, "状态越好越能承担风险"),
+          c("体力充足", "stamina", 0.45, highWhenHigh, "体力越好越适合移动和搬运")
+        ],
+        effect(state) {
+          state.lootValue = clamp(state.lootValue - 26);
+          state.hunger = clamp(state.hunger + 8);
+          state.stamina = clamp(state.stamina - 10);
+          state.enemyThreat = clamp(state.enemyThreat + 8);
+        }
+      },
+      {
+        id: "rest",
+        name: "短暂休息",
+        emoji: "💤",
+        base: 0.66,
+        description: "体力很低且局势安全时，休息能让后续行为更可靠。",
+        considerations: [
+          c("体力低", "stamina", 1.05, highWhenLow, "越累越需要休息"),
+          c("周围安全", "enemyThreat", 0.85, highWhenLow, "危险时不能安心休息"),
+          c("饥饿不高", "hunger", 0.45, highWhenLow, "太饿会压低休息收益")
+        ],
+        effect(state) {
+          state.stamina = clamp(state.stamina + 30);
+          state.hunger = clamp(state.hunger + 7);
+          state.enemyThreat = clamp(state.enemyThreat + 3);
+        }
+      }
+    ];
+
+    function c(name, input, weight, curve, explanation) {
+      return { name, input, weight, curve, explanation };
+    }
+
+    let world = { ...defaultState };
+    let frame = 0;
+    let timer = null;
+
+    function scoreConsideration(consideration, state) {
+      const raw = clamp(consideration.curve(state[consideration.input]) * 100, 0, 100) / 100;
+      const weighted = clamp(raw * consideration.weight, 0, 1);
+      return { raw, weighted };
+    }
+
+    function scoreAction(action, state) {
+      const parts = action.considerations.map(item => ({ item, ...scoreConsideration(item, state) }));
+      const mode = document.querySelector("#aggregator")?.value || "multiply";
+      let total;
+      if (mode === "average") {
+        const weightSum = action.considerations.reduce((sum, item) => sum + item.weight, 0);
+        total = action.base * parts.reduce((sum, part) => sum + part.raw * part.item.weight, 0) / weightSum;
+      } else {
+        total = parts.reduce((value, part) => value * Math.max(0.05, part.weighted), action.base);
+      }
+      return { action, parts, total: clamp(total, 0, 1) };
+    }
+
+    function getRankedActions() {
+      return actions.map(action => scoreAction(action, world)).sort((a, b) => b.total - a.total);
+    }
+
+    function renderControls() {
+      document.querySelector("#controls").innerHTML = Object.entries(stateMeta).map(([key, meta]) => `
+        <div class="control">
+          <div class="control-head"><span>${meta.label}</span><span class="control-value" id="value-${key}">0</span></div>
+          <input type="range" min="0" max="100" step="1" data-key="${key}" />
+          <div class="hint">${meta.low} ←→ ${meta.high}</div>
+        </div>
+      `).join("");
+
+      document.querySelectorAll("#controls input").forEach(input => {
+        input.addEventListener("input", event => {
+          world[event.target.dataset.key] = Number(event.target.value);
+          render();
+        });
+      });
+
+      document.querySelector("#presets").innerHTML = presets.map((preset, index) => `
+        <button class="secondary" data-preset="${index}">${preset[0]}</button>
+      `).join("");
+
+      document.querySelectorAll("#presets button").forEach(button => {
+        button.addEventListener("click", event => {
+          const selected = presets[Number(event.target.dataset.preset)];
+          world = { ...selected[1] };
+          addLog(`载入预设：${selected[0]}`);
+          render();
+        });
+      });
+
+      document.querySelector("#aggregator").addEventListener("change", () => {
+        addLog(`切换聚合方式：${document.querySelector("#aggregator").value}`);
+        render();
+      });
+
+      document.querySelector("#tickBtn").addEventListener("click", tick);
+      document.querySelector("#resetBtn").addEventListener("click", reset);
+      document.querySelector("#autoBtn").addEventListener("click", startAuto);
+      document.querySelector("#stopBtn").addEventListener("click", stopAuto);
+    }
+
+    function render() {
+      document.querySelectorAll("#controls input").forEach(input => {
+        input.value = world[input.dataset.key];
+        document.querySelector(`#value-${input.dataset.key}`).textContent = world[input.dataset.key];
+      });
+
+      const ranked = getRankedActions();
+      const best = ranked[0];
+      const second = ranked[1];
+      document.querySelector("#bestName").textContent = best.action.name;
+      document.querySelector("#bestScore").textContent = round(best.total);
+      document.querySelector("#scoreGap").textContent = round(best.total - second.total);
+      document.querySelector("#frameCount").textContent = frame;
+      renderWinner(best, second);
+      renderStateChips();
+      renderActions(ranked);
+      renderMatrix(ranked);
+    }
+
+    function renderWinner(best, second) {
+      const leadingText = best.total - second.total < 0.06
+        ? "注意：第一名和第二名非常接近，轻微状态变化就可能让行为切换。"
+        : "当前胜出行为比较稳定，说明多个考量项共同支持它。";
+
+      document.querySelector("#winner").innerHTML = `
+        <div class="winner-icon">${best.action.emoji}</div>
+        <div>
+          <h2>当前会选择：${best.action.name}</h2>
+          <div class="winner-score">${round(best.total)}</div>
+          <p>${best.action.description}</p>
+          <p class="hint">${leadingText}</p>
+        </div>
+      `;
+    }
+
+    function renderStateChips() {
+      document.querySelector("#stateChips").innerHTML = Object.entries(world).map(([key, value]) => {
+        let level = "mid";
+        if (["health", "stamina", "ammo", "coverSafety"].includes(key)) level = value >= 65 ? "good" : value <= 30 ? "high" : "mid";
+        if (["hunger", "enemyThreat"].includes(key)) level = value >= 65 ? "high" : value <= 30 ? "good" : "mid";
+        if (key === "lootValue") level = value >= 65 ? "good" : value <= 30 ? "mid" : "good";
+        return `<span class="state-chip ${level}">${stateMeta[key].label}: ${value}</span>`;
+      }).join("");
+    }
+
+    function renderActions(ranked) {
+      const bestId = ranked[0].action.id;
+      document.querySelector("#actions").innerHTML = ranked.map((result, index) => {
+        const badgeClass = result.action.id === bestId ? "best" : result.total < 0.12 ? "low" : "normal";
+        const badgeText = result.action.id === bestId ? "当前胜出" : `#${index + 1}`;
+        return `
+          <div class="action-card ${result.action.id === bestId ? "best" : ""}">
+            <div class="action-title">
+              <div class="emoji">${result.action.emoji}</div>
+              <div><h3>${result.action.name}</h3><div class="hint">${result.action.description}</div></div>
+              <span class="pill ${badgeClass}">${badgeText}</span>
+            </div>
+            ${result.parts.map(part => barRow(part.item.name, part.weighted, `raw ${round(part.raw)} × w ${part.item.weight}`)).join("")}
+            <div class="score-line">
+              <span>总 Utility</span>
+              <div class="bar-track"><div class="bar-fill" style="width:${result.total * 100}%"></div></div>
+              <span>${round(result.total)}</span>
+            </div>
+          </div>
+        `;
+      }).join("");
+    }
+
+    function barRow(label, value, detail) {
+      return `
+        <div class="bar-row" title="${detail}">
+          <span>${label}</span>
+          <div class="bar-track"><div class="bar-fill" style="width:${value * 100}%"></div></div>
+          <span>${round(value)}</span>
+        </div>
+      `;
+    }
+
+    function renderMatrix(ranked) {
+      document.querySelector("#matrixBody").innerHTML = ranked.map(result => {
+        const considerations = result.parts.map(part => `${part.item.name}: ${round(part.weighted)}`).join("<br>");
+        const explanations = result.parts.map(part => `${part.item.explanation}（输入：${stateMeta[part.item.input].label}=${world[part.item.input]}）`).join("<br>");
+        return `
+          <tr>
+            <td><b>${result.action.emoji} ${result.action.name}</b><br><span class="hint">Utility ${round(result.total)}</span></td>
+            <td>${considerations}</td>
+            <td>${explanations}</td>
+          </tr>
+        `;
+      }).join("");
+    }
+
+    function tick() {
+      const best = getRankedActions()[0];
+      frame += 1;
+      best.action.effect(world);
+      driftWorld();
+      addLog(`Frame ${frame}: 选择 ${best.action.name}，score=${round(best.total)}`);
+      render();
+    }
+
+    function driftWorld() {
+      world.hunger = clamp(world.hunger + 3);
+      world.stamina = clamp(world.stamina - 2);
+      world.enemyThreat = clamp(world.enemyThreat + 1);
+      world.lootValue = clamp(world.lootValue + 1);
+    }
+
+    function reset() {
+      stopAuto();
+      world = { ...defaultState };
+      frame = 0;
+      document.querySelector("#log").innerHTML = "";
+      addLog("重置 demo。拖动左侧状态，观察评分变化。", false);
+      render();
+    }
+
+    function startAuto() {
+      if (timer) return;
+      addLog("自动播放开始。", false);
+      timer = setInterval(tick, 900);
+    }
+
+    function stopAuto() {
+      if (!timer) return;
+      clearInterval(timer);
+      timer = null;
+      addLog("自动播放停止。", false);
+    }
+
+    function addLog(message, includeTime = true) {
+      const log = document.querySelector("#log");
+      const time = includeTime ? new Date().toLocaleTimeString() + " · " : "";
+      log.innerHTML = `<div>${time}${message}</div>` + log.innerHTML;
+    }
+
+    renderControls();
+    addLog("初始化完成：当前每个行为都会根据世界状态重新打分。", false);
+    render();
+  </script>
+</body>
+</html>
