@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="tutorial:source" content="Epic Developer Documentation: Environment Query System, User Guide, Quick Start, Node References; UE5-main/UE5.6 knowledge base" />
+  <meta name="tutorial:source-mtime" content="unknown" />
+  <meta name="tutorial:generated" content="2026-07-02" />
+  <meta name="tutorial:topics" content="Unreal Engine,EQS,AI,Behavior Tree,Environment Query System" />
+  <meta name="tutorial:audience" content="ue-beginner-ai" />
+  <meta name="tutorial:duration-min" content="20" />
+  <meta name="tutorial:status" content="draft" />
+  <title>Unreal EQS 交互式入门 · 新人教程</title>
+  <style>
+    :root {
+      --primary: #2563eb;
+      --cyan: #06b6d4;
+      --green: #10b981;
+      --amber: #f59e0b;
+      --purple: #8b5cf6;
+      --red: #ef4444;
+      --bg-page: #f1f5f9;
+      --bg-card: #ffffff;
+      --code-bg: #0f172a;
+      --code-text: #e2e8f0;
+      --muted: #64748b;
+      --text: #0f172a;
+      --border: #e2e8f0;
+      --shadow: 0 1px 3px rgba(0,0,0,0.05), 0 4px 12px rgba(15,23,42,0.06);
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top left, rgba(37,99,235,.14), transparent 30rem),
+        radial-gradient(circle at 80% 10%, rgba(6,182,212,.14), transparent 26rem),
+        var(--bg-page);
+      line-height: 1.65;
+    }
+    a { color: var(--primary); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .topnav {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      padding: .75rem max(1rem, calc((100vw - 1160px) / 2));
+      background: rgba(255,255,255,.86);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+    }
+    .brand { font-weight: 800; letter-spacing: -.02em; }
+    .navlinks { display: flex; gap: .65rem; flex-wrap: wrap; font-size: .92rem; }
+    .navlinks a { color: #334155; padding: .28rem .55rem; border-radius: 999px; }
+    .navlinks a:hover { background: #e0f2fe; text-decoration: none; }
+    .progress-pill { min-width: 116px; text-align: right; color: var(--muted); font-size: .88rem; }
+    .container { width: min(1160px, calc(100% - 2rem)); margin: 0 auto; padding: 1.3rem 0 4rem; }
+    .hero {
+      display: grid;
+      grid-template-columns: 1.15fr .85fr;
+      gap: 1.25rem;
+      align-items: stretch;
+      padding: 2rem;
+      margin: 1rem 0 1.4rem;
+      background: linear-gradient(135deg, rgba(15,23,42,.96), rgba(30,64,175,.9));
+      color: white;
+      border-radius: 28px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      position: relative;
+    }
+    .hero:after {
+      content: "";
+      position: absolute;
+      width: 360px;
+      height: 360px;
+      right: -120px;
+      top: -120px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(6,182,212,.35), transparent 70%);
+    }
+    .hero > * { position: relative; z-index: 1; }
+    .hero h1 { margin: 0 0 .6rem; font-size: clamp(2rem, 5vw, 4.3rem); line-height: 1.05; letter-spacing: -.06em; }
+    .hero p { color: #dbeafe; font-size: 1.08rem; margin: .3rem 0; }
+    .hero .tagrow { display: flex; flex-wrap: wrap; gap: .55rem; margin-top: 1rem; }
+    .tag { border: 1px solid rgba(255,255,255,.25); background: rgba(255,255,255,.1); color: inherit; padding: .35rem .65rem; border-radius: 999px; font-size: .85rem; }
+    .hero-card {
+      background: rgba(255,255,255,.1);
+      border: 1px solid rgba(255,255,255,.2);
+      border-radius: 22px;
+      padding: 1.1rem;
+      backdrop-filter: blur(10px);
+    }
+    .hero-card strong { color: #fff; }
+    .hero-card ol { margin: .5rem 0 0; padding-left: 1.2rem; color: #e0f2fe; }
+    .chapter {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      box-shadow: var(--shadow);
+      padding: 1.45rem;
+      margin: 1rem 0;
+    }
+    .chapter h2 { margin: 0 0 .45rem; font-size: clamp(1.45rem, 2.5vw, 2.1rem); letter-spacing: -.03em; }
+    .chapter h3 { margin: 1.1rem 0 .45rem; }
+    .lead { color: #334155; font-size: 1.05rem; }
+    .grid { display: grid; gap: .95rem; }
+    .grid.cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .grid.cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .concepts { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+    .concept-card, .mini-card, .decision-card, .quiz-card {
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 1rem;
+      box-shadow: 0 1px 2px rgba(15,23,42,.04);
+    }
+    .concept-card .label { color: var(--primary); font-size: .78rem; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; }
+    .concept-card .title { font-weight: 800; font-size: 1.08rem; margin: .2rem 0; }
+    .concept-card .icon { width: 2.1rem; height: 2.1rem; display: grid; place-items: center; border-radius: .75rem; background: #eff6ff; color: var(--primary); font-weight: 900; }
+    .note, .warn, .sourcebox {
+      border-radius: 16px;
+      padding: .9rem 1rem;
+      margin: .8rem 0;
+      border: 1px solid var(--border);
+    }
+    .note { background: #f0f9ff; border-color: #bae6fd; }
+    .warn { background: #fffbeb; border-color: #fde68a; }
+    .sourcebox { background: #f8fafc; color: #334155; font-size: .94rem; }
+    code, .code {
+      font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+      background: #e2e8f0;
+      border-radius: .4rem;
+      padding: .08rem .32rem;
+    }
+    pre {
+      overflow: auto;
+      background: var(--code-bg);
+      color: var(--code-text);
+      padding: 1rem;
+      border-radius: 16px;
+      line-height: 1.5;
+    }
+    .btnrow { display: flex; flex-wrap: wrap; gap: .6rem; margin: .8rem 0; }
+    button, .button {
+      border: 0;
+      border-radius: 999px;
+      padding: .62rem .95rem;
+      font-weight: 750;
+      color: white;
+      background: var(--primary);
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(37,99,235,.18);
+    }
+    button.secondary { background: #475569; }
+    button.ghost { background: #e2e8f0; color: #0f172a; box-shadow: none; }
+    button.good { background: var(--green); }
+    button.warnbtn { background: var(--amber); }
+    button:focus-visible, [tabindex]:focus-visible { outline: 3px solid #93c5fd; outline-offset: 3px; }
+    .map-wrap, .flow-wrap, .lab-wrap { display: grid; grid-template-columns: 1.25fr .75fr; gap: 1rem; align-items: stretch; }
+    .panel {
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 1rem;
+      background: #f8fafc;
+    }
+    .map-svg, .flow-svg { width: 100%; height: auto; background: linear-gradient(180deg, #f8fafc, #fff); border: 1px solid var(--border); border-radius: 18px; }
+    .node rect, .node circle { transition: .2s; filter: drop-shadow(0 2px 5px rgba(15,23,42,.08)); }
+    .node:hover rect, .node:hover circle, .node.active rect, .node.active circle { stroke: var(--primary); stroke-width: 3; transform: translateY(-1px); }
+    .node text { pointer-events: none; font-weight: 800; fill: #0f172a; font-size: 14px; }
+    .edge { stroke: #94a3b8; stroke-width: 2; fill: none; marker-end: url(#arrow); }
+    .flow-lane { fill: #f8fafc; stroke: #cbd5e1; stroke-width: 1; }
+    .flow-lane-label { font-size: 13px; font-weight: 800; fill: #334155; }
+    .flow-arrow { stroke: var(--primary); stroke-width: 4; marker-end: url(#arrowBlue); transition: .2s; }
+    .flow-dot { fill: var(--primary); transition: .2s; }
+    .flow-step-text { font-size: 13px; fill: #0f172a; font-weight: 700; }
+    .step-counter { font-size: .9rem; color: var(--muted); }
+    .tabs { display: flex; gap: .5rem; flex-wrap: wrap; margin: .75rem 0; }
+    .tab { background: #e2e8f0; color: #0f172a; box-shadow: none; }
+    .tab.active { background: var(--primary); color: white; }
+    .tab-panel { display: none; border: 1px solid var(--border); border-radius: 18px; padding: 1rem; background: #f8fafc; }
+    .tab-panel.active { display: block; }
+    table { width: 100%; border-collapse: collapse; overflow: hidden; border-radius: 14px; }
+    th, td { border-bottom: 1px solid var(--border); padding: .68rem; text-align: left; vertical-align: top; }
+    th { background: #eff6ff; color: #1e3a8a; }
+    tr:last-child td { border-bottom: 0; }
+    .lab-controls { display: grid; gap: .8rem; }
+    .select-row { display: flex; gap: .5rem; flex-wrap: wrap; align-items: center; }
+    select, input[type="range"] { accent-color: var(--primary); }
+    select { padding: .55rem .7rem; border: 1px solid var(--border); border-radius: 12px; background: white; }
+    .candidate-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: .55rem; }
+    .candidate {
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      background: white;
+      padding: .65rem;
+      min-height: 84px;
+      transition: .2s;
+    }
+    .candidate.filtered { opacity: .42; filter: grayscale(.5); }
+    .candidate.winner { border-color: var(--green); box-shadow: 0 0 0 3px rgba(16,185,129,.15); }
+    .scorebar { height: 9px; background: #e2e8f0; border-radius: 999px; overflow: hidden; margin-top: .35rem; }
+    .scorebar span { display: block; height: 100%; background: linear-gradient(90deg, var(--cyan), var(--green)); width: 0%; }
+    .decision-grid { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+    .decision-card { cursor: pointer; transition: .2s; }
+    .decision-card:hover, .decision-card.active { border-color: var(--primary); transform: translateY(-2px); }
+    .checklist { display: grid; gap: .5rem; }
+    .checkitem { display: flex; gap: .6rem; align-items: flex-start; padding: .7rem; border: 1px solid var(--border); border-radius: 14px; background: #fff; }
+    .checkitem input { margin-top: .28rem; }
+    .quiz-options { display: grid; gap: .45rem; margin-top: .6rem; }
+    .quiz-options label { display: block; padding: .58rem .7rem; border: 1px solid var(--border); border-radius: 12px; cursor: pointer; background: #fff; }
+    .quiz-options label.correct { border-color: var(--green); background: #ecfdf5; }
+    .quiz-options label.wrong { border-color: var(--red); background: #fef2f2; }
+    .quiz-explain { color: #334155; font-size: .94rem; margin-top: .45rem; }
+    footer { color: #475569; width: min(1160px, calc(100% - 2rem)); margin: 0 auto 3rem; font-size: .92rem; }
+    .footer-inner { background: white; border: 1px solid var(--border); border-radius: 20px; padding: 1rem; box-shadow: var(--shadow); }
+    @media (max-width: 900px) {
+      .hero, .map-wrap, .flow-wrap, .lab-wrap, .grid.cols-2, .grid.cols-3 { grid-template-columns: 1fr; }
+      .topnav { align-items: flex-start; flex-direction: column; }
+      .progress-pill { text-align: left; }
+    }
+    @media (max-width: 720px) {
+      .container { width: min(100% - 1rem, 1160px); }
+      .chapter, .hero { border-radius: 18px; padding: 1rem; }
+      .navlinks { display: none; }
+      .candidate-grid { grid-template-columns: 1fr; }
+      th, td { display: block; width: 100%; }
+      th { border-bottom: 0; }
+    }
+  </style>
+</head>
+<body>
+  <nav class="topnav">
+    <div class="brand">Unreal EQS 入门</div>
+    <div class="navlinks">
+      <a href="#ch1">定位</a><a href="#ch2">地图</a><a href="#ch3">词汇</a><a href="#ch4">流程</a><a href="#ch5">搭建</a><a href="#ch6">调参</a><a href="#ch7">排错</a><a href="#ch8">自检</a>
+    </div>
+    <div class="progress-pill" id="progressText">进度 0%</div>
+  </nav>
+
+  <main class="container">
+    <header class="hero">
+      <div>
+        <h1>EQS：让 AI 向环境提问</h1>
+        <p>20 分钟交互式入门：从“生成候选点”到“过滤、计分、写入黑板”，理解 Unreal `Environment Query System` 的最小闭环。</p>
+        <div class="tagrow">
+          <span class="tag">Generator</span><span class="tag">Test</span><span class="tag">Context</span><span class="tag">Behavior Tree</span><span class="tag">Blackboard</span>
+        </div>
+      </div>
+      <div class="hero-card">
+        <strong>学完你应该能：</strong>
+        <ol>
+          <li>说清 `EQS` 解决什么问题，以及它不替代什么。</li>
+          <li>读懂 `Root -> Generator -> Tests` 的查询图。</li>
+          <li>解释 `Trace` 过滤、`Distance` 计分、`Run EQS Query` 写黑板的链路。</li>
+          <li>用 `EQSTestingPawn` 或 AI Debug 看懂球体、分数和 Winner。</li>
+        </ol>
+      </div>
+    </header>
+
+    <section class="chapter" id="ch1">
+      <h2>1. 一句话定位</h2>
+      <p class="lead"><strong>`EQS` 是 Unreal AI 系统里“收集环境候选项，并用测试选出最佳项”的查询工具。</strong>它常被 `Behavior Tree` 调用，结果通常写入 `Blackboard Key`，再驱动移动、面向目标或后续攻击行为。</p>
+      <div class="grid concepts">
+        <div class="concept-card"><div class="icon">?</div><div class="label">WHAT</div><div class="title">它是什么</div><div>一个环境查询资源：生成位置或 Actor 作为 `Item`，再通过测试过滤与计分，返回最适合的问题答案。</div></div>
+        <div class="concept-card"><div class="icon">AI</div><div class="label">WHY</div><div class="title">为什么需要</div><div>当 AI 不只是“去固定点”，而是要“找最近补给、找掩体、找能看见玩家的攻击点”时，需要把空间选择显式建模。</div></div>
+        <div class="concept-card"><div class="icon">≠</div><div class="label">NOT</div><div class="title">它不是什么</div><div>它不是 `Behavior Tree` 的替代品，也不是寻路系统本身；它给出候选结果，是否移动、如何移动仍由行为树和导航系统执行。</div></div>
+      </div>
+      <div class="sourcebox">事实来源：Epic 官方 `Environment Query System`、`Overview` 与 `User Guide` 文档说明 `EQS` 用于收集环境数据，通过 `Generator`、`Test`、`Context` 返回最佳 `Item`，并可从 `Behavior Tree` 调用。</div>
+    </section>
+
+    <section class="chapter" id="ch2">
+      <h2>2. 大图：EQS 在 AI 决策链里的位置</h2>
+      <p class="lead">点击图中的节点，看它在查询中的职责。先记住这条主线：<strong>`Behavior Tree` 发起查询，`EQS` 选出结果，结果进入 `Blackboard`。</strong></p>
+      <div class="map-wrap">
+        <svg class="map-svg" viewBox="0 0 820 430" role="img" aria-label="EQS concept map">
+          <defs>
+            <marker id="arrow" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto"><path d="M0,0 L10,4 L0,8 Z" fill="#94a3b8"></path></marker>
+          </defs>
+          <path class="edge" d="M120 90 C190 90 205 90 275 90" />
+          <path class="edge" d="M405 90 C475 90 490 90 560 90" />
+          <path class="edge" d="M645 125 C645 162 645 176 645 214" />
+          <path class="edge" d="M560 250 C490 250 475 250 405 250" />
+          <path class="edge" d="M275 250 C205 250 190 250 120 250" />
+          <path class="edge" d="M340 122 C340 155 340 177 340 210" />
+          <path class="edge" d="M250 312 C260 360 555 360 570 312" />
+          <g class="node active" tabindex="0" data-id="bt"><rect x="30" y="55" width="130" height="70" rx="18" fill="#dbeafe" stroke="#bfdbfe"/><text x="95" y="95" text-anchor="middle">Behavior Tree</text></g>
+          <g class="node" tabindex="0" data-id="run"><rect x="275" y="55" width="145" height="70" rx="18" fill="#e0f2fe" stroke="#bae6fd"/><text x="347" y="86" text-anchor="middle">Run EQS</text><text x="347" y="105" text-anchor="middle">Query</text></g>
+          <g class="node" tabindex="0" data-id="asset"><rect x="560" y="55" width="145" height="70" rx="18" fill="#ede9fe" stroke="#ddd6fe"/><text x="633" y="86" text-anchor="middle">EQS Query</text><text x="633" y="105" text-anchor="middle">Asset</text></g>
+          <g class="node" tabindex="0" data-id="gen"><rect x="570" y="215" width="135" height="70" rx="18" fill="#dcfce7" stroke="#bbf7d0"/><text x="638" y="246" text-anchor="middle">Generator</text><text x="638" y="265" text-anchor="middle">生成 Items</text></g>
+          <g class="node" tabindex="0" data-id="test"><rect x="275" y="215" width="145" height="70" rx="18" fill="#fef3c7" stroke="#fde68a"/><text x="347" y="246" text-anchor="middle">Tests</text><text x="347" y="265" text-anchor="middle">过滤 / 计分</text></g>
+          <g class="node" tabindex="0" data-id="bb"><rect x="30" y="215" width="145" height="70" rx="18" fill="#fee2e2" stroke="#fecaca"/><text x="103" y="246" text-anchor="middle">Blackboard</text><text x="103" y="265" text-anchor="middle">Vector / Object</text></g>
+          <g class="node" tabindex="0" data-id="ctx"><circle cx="347" cy="365" r="48" fill="#f1f5f9" stroke="#cbd5e1"/><text x="347" y="360" text-anchor="middle">Context</text><text x="347" y="379" text-anchor="middle">参考系</text></g>
+          <g class="node" tabindex="0" data-id="item"><circle cx="638" cy="365" r="48" fill="#f1f5f9" stroke="#cbd5e1"/><text x="638" y="360" text-anchor="middle">Item</text><text x="638" y="379" text-anchor="middle">候选项</text></g>
+        </svg>
+        <aside class="panel" id="mapDetails">
+          <h3>Behavior Tree</h3>
+          <p>`Behavior Tree` 负责“何时需要一个环境答案”。常见做法是在任务节点中运行 `Run EQS Query`，再把结果写入 `Blackboard Key`。</p>
+          <pre>Combat branch
+  Run EQS Query -> MoveToLocation
+  Move To       -> MoveToLocation</pre>
+        </aside>
+      </div>
+    </section>
+
+    <section class="chapter" id="ch3">
+      <h2>3. 核心词汇：先把节点名字记成动作</h2>
+      <div class="grid concepts">
+        <div class="concept-card"><div class="icon">Q</div><div class="label">Asset</div><div class="title">`Environment Query`</div><div>查询资源。你在内容浏览器创建它，在 EQS 编辑器中连接 `Root`、`Generator` 和 `Tests`。</div></div>
+        <div class="concept-card"><div class="icon">G</div><div class="label">Generate</div><div class="title">`Generator`</div><div>产生候选 `Item`。例如 `Points: Grid` 生成一组位置；`Actors of Class` 在范围内找指定类 Actor。</div></div>
+        <div class="concept-card"><div class="icon">I</div><div class="label">Candidate</div><div class="title">`Item`</div><div>被测试的候选项，可以是位置 `FVector` 或 Actor。调试时常以球体显示。</div></div>
+        <div class="concept-card"><div class="icon">C</div><div class="label">Reference</div><div class="title">`Context`</div><div>测试和生成器的参考框架。内置有 `Querier`、`Item`，也可用 `EnvQueryContext_BlueprintBase` 或 C++ 自定义。</div></div>
+        <div class="concept-card"><div class="icon">T</div><div class="label">Ask</div><div class="title">`Test`</div><div>向候选项提问：能否看见玩家？距离多远？路径是否存在？测试可过滤、计分，或二者兼具。</div></div>
+        <div class="concept-card"><div class="icon">R</div><div class="label">Return</div><div class="title">`Run Mode`</div><div>`Run EQS Query` 可选 `Single Best Item`、前 5% 随机、前 25% 随机或 `All Matching`。</div></div>
+      </div>
+      <div class="warn"><strong>容易混淆：</strong>官方文档说明，对同一个 `Generator` 添加多个 `Test` 是常见做法；测试顺序不决定最终语义，过滤测试会先于计分测试执行，以减少后续计分成本。</div>
+    </section>
+
+    <section class="chapter" id="ch4">
+      <h2>4. 主流程动画：从丢失视线到重新站位</h2>
+      <p class="lead">下面用官方快速入门的远程 AI 场景：AI 巡逻、看到玩家、丢失视线后运行 `EQS_FindPlayer`，找一个能看见玩家的位置。</p>
+      <div class="flow-wrap">
+        <div>
+          <svg class="flow-svg" viewBox="0 0 860 360" role="img" aria-label="EQS sequence animation">
+            <defs><marker id="arrowBlue" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto"><path d="M0,0 L10,4 L0,8 Z" fill="#2563eb"></path></marker></defs>
+            <rect class="flow-lane" x="25" y="45" width="150" height="260" rx="16"/><text class="flow-lane-label" x="100" y="30" text-anchor="middle">Behavior Tree</text>
+            <rect class="flow-lane" x="240" y="45" width="150" height="260" rx="16"/><text class="flow-lane-label" x="315" y="30" text-anchor="middle">EQS Query</text>
+            <rect class="flow-lane" x="455" y="45" width="150" height="260" rx="16"/><text class="flow-lane-label" x="530" y="30" text-anchor="middle">Tests</text>
+            <rect class="flow-lane" x="670" y="45" width="150" height="260" rx="16"/><text class="flow-lane-label" x="745" y="30" text-anchor="middle">Blackboard / AI</text>
+            <line id="flowLine" class="flow-arrow" x1="100" y1="90" x2="315" y2="90"/>
+            <circle id="flowDot" class="flow-dot" cx="100" cy="90" r="8"/>
+            <text id="flowMsg" class="flow-step-text" x="430" y="335" text-anchor="middle">Run EQS Query</text>
+          </svg>
+          <div class="btnrow">
+            <button id="prevStep" class="secondary">上一步</button>
+            <button id="nextStep">下一步</button>
+            <button id="playStep" class="good">自动播放</button>
+            <button id="resetStep" class="ghost">重置</button>
+          </div>
+        </div>
+        <aside class="panel">
+          <div class="step-counter" id="stepCounter">步骤 1 / 7</div>
+          <h3 id="stepTitle">行为树决定：需要一个位置</h3>
+          <p id="stepDesc">当 AI 进入战斗分支但没有合适视线时，行为树执行 `Run EQS Query`。</p>
+          <pre id="stepCode">BT: Run EQS Query
+Query Template = EQS_FindPlayer</pre>
+        </aside>
+      </div>
+    </section>
+
+    <section class="chapter" id="ch5">
+      <h2>5. 最小可跑配方：用官方快速入门拆成 6 步</h2>
+      <p class="lead">这不是完整项目搭建指南，而是把 `EQS_FindPlayer` 的关键节点压缩成可记忆配方。</p>
+      <div class="tabs" role="tablist" aria-label="EQS setup tabs">
+        <button class="tab active" data-tab="setup">启用与资源</button>
+        <button class="tab" data-tab="context">Context</button>
+        <button class="tab" data-tab="generator">Generator</button>
+        <button class="tab" data-tab="tests">Tests</button>
+        <button class="tab" data-tab="bt">Behavior Tree</button>
+        <button class="tab" data-tab="debug">Debug</button>
+      </div>
+      <div class="tab-panel active" id="tab-setup">
+        <h3>启用与资源</h3>
+        <ol>
+          <li>在 `Project Settings > Plugins` 启用 `Environment Query Editor`。</li>
+          <li>创建 `Blackboard`、`Behavior Tree`、`Environment Query`、`AIController`。</li>
+          <li>官方快速入门示例命名：`BB_Enemy`、`BT_Enemy`、`EQS_FindPlayer`、`AIC_Enemy`、`EQC_PlayerContext`。</li>
+        </ol>
+      </div>
+      <div class="tab-panel" id="tab-context">
+        <h3>`EQC_PlayerContext`：给测试一个玩家参考点</h3>
+        <p>创建 `EnvQueryContext_BlueprintBase` 蓝图，覆盖 `Provide Single Actor`，返回 `Get Player Character`。这样 `Trace` 和 `Distance` 能相对玩家进行评估。</p>
+        <pre>EQC_PlayerContext
+  Override Provide Single Actor
+  Resulting Actor = Get Player Character</pre>
+        <p>官方快速入门也提示：教程使用蓝图方便理解，更优化的方式可以用 C++ 创建 Context。</p>
+      </div>
+      <div class="tab-panel" id="tab-generator">
+        <h3>`Points: Grid`：围绕 AI 生成候选位置</h3>
+        <p>在 `EQS_FindPlayer` 中从 `Root` 接出 `Points: Grid`。示例设置：</p>
+        <table><tr><th>属性</th><th>值</th><th>含义</th></tr><tr><td>`GridHalfSize`</td><td>`800`</td><td>控制网格范围的一半。</td></tr><tr><td>`Space Between`</td><td>`150.0`</td><td>控制点之间间隔，也影响候选点数量。</td></tr><tr><td>`Generate Around`</td><td>`Querier`</td><td>围绕 AI 生成，而不是围绕玩家生成。</td></tr></table>
+      </div>
+      <div class="tab-panel" id="tab-tests">
+        <h3>两个测试：先能看见，再按距离选</h3>
+        <table><tr><th>测试</th><th>关键设置</th><th>作用</th></tr><tr><td>`Trace`</td><td>`Test Purpose = Filter Only`<br>`Context = EQC_PlayerContext`<br>`Bool Match = Disabled`</td><td>过滤掉无法看到玩家的点。</td></tr><tr><td>`Distance`</td><td>`Test Purpose = Score Only`<br>`Scoring Factor = -1.0`</td><td>对剩余点按距离计分；示例中 `-1.0` 倾向更近的有效点。</td></tr></table>
+      </div>
+      <div class="tab-panel" id="tab-bt">
+        <h3>`Run EQS Query` 写黑板</h3>
+        <p>在行为树战斗分支中添加 `Run EQS Query`，设置 `Query Template = EQS_FindPlayer`，把结果写入 `MoveToLocation`，再执行 `Move To`。</p>
+        <pre>Run EQS Query
+  Query Template = EQS_FindPlayer
+  Blackboard Key = MoveToLocation
+Move To
+  Destination = MoveToLocation</pre>
+      </div>
+      <div class="tab-panel" id="tab-debug">
+        <h3>看见系统在想什么</h3>
+        <ul>
+          <li>运行时按撇号键 `'` 打开 AI Debug；`1` 通用 AI、`2` 行为树、`3` EQS、`4` AI 感知。</li>
+          <li>`EQS Testing Pawn` 可在编辑器中指定 `Query Template` 并查看调试球体。</li>
+          <li>调试信息会显示网格点、分数和值，以及被选中的 `Winner`。</li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="chapter" id="ch6">
+      <h2>6. 互动调参：过滤、计分、Run Mode 会怎样改变结果？</h2>
+      <p class="lead">这个小实验模拟 `Trace` 先过滤、`Distance` 再计分的效果。数据是教学用的简化候选点，不代表引擎内部完整算法。</p>
+      <div class="lab-wrap">
+        <div class="panel">
+          <div class="candidate-grid" id="candidateGrid"></div>
+        </div>
+        <aside class="panel lab-controls">
+          <label class="select-row">`Trace` 过滤：
+            <select id="traceFilter"><option value="on">只保留能看见玩家的点</option><option value="off">不做视线过滤</option></select>
+          </label>
+          <label class="select-row">`Distance Scoring Factor`：
+            <select id="scoreFactor"><option value="-1">-1.0：更近分更高</option><option value="1">1.0：更远分更高</option></select>
+          </label>
+          <label class="select-row">`Run Mode`：
+            <select id="runMode"><option value="best">Single Best Item</option><option value="top25">Single Random Item from Best 25%</option><option value="all">All Matching</option></select>
+          </label>
+          <button id="reroll" class="warnbtn">重新随机 top 25%</button>
+          <div id="labResult" class="note"></div>
+        </aside>
+      </div>
+      <div class="warn"><strong>性能直觉：</strong>`GridHalfSize` 越大、`Space Between` 越小，候选点通常越多，测试成本越高。官方快速入门在设置网格时明确提醒：过大的网格可能影响游戏性能。</div>
+    </section>
+
+    <section class="chapter" id="ch7">
+      <h2>7. 排错决策树：新人最常卡在哪里？</h2>
+      <div class="decision-grid grid" id="decisionGrid">
+        <div class="decision-card active" data-decision="noasset"><strong>创建不了 Environment Query</strong><p>内容浏览器里找不到 EQS 资源。</p></div>
+        <div class="decision-card" data-decision="noresult"><strong>查询没有结果</strong><p>Run EQS 后黑板没写入目标。</p></div>
+        <div class="decision-card" data-decision="badmove"><strong>AI 跑向奇怪位置</strong><p>点太远、跑过玩家或一直绕路。</p></div>
+        <div class="decision-card" data-decision="nodebug"><strong>看不到调试球体</strong><p>不知道哪些点被过滤或选中。</p></div>
+      </div>
+      <div class="panel" id="decisionDetail">
+        <h3>创建不了 Environment Query</h3>
+        <p><strong>先检查：</strong>`Project Settings > Plugins` 是否启用了 `Environment Query Editor`。</p>
+        <p><strong>下一步：</strong>启用后再从 `Artificial Intelligence` 创建 `Environment Query` 资源。</p>
+      </div>
+      <div class="warn"><strong>编辑器调试注意：</strong>官方相关文档提到 `EQSTestingPawn` 可能给处理器造成较大负担，对活跃查询模板进行修改可能导致长时间挂起；编辑时尽量明确查询模板并控制候选规模。</div>
+    </section>
+
+    <section class="chapter" id="ch8">
+      <h2>8. 学习清单与自测</h2>
+      <div class="grid cols-2">
+        <div>
+          <h3>完成清单</h3>
+          <div class="checklist" id="checklist">
+            <label class="checkitem"><input type="checkbox" data-check="1"> 我能用一句话解释 `EQS`：生成候选项，用测试选出最佳项。</label>
+            <label class="checkitem"><input type="checkbox" data-check="2"> 我知道 `Generator` 产生 `Item`，`Test` 过滤/计分，`Context` 提供参考系。</label>
+            <label class="checkitem"><input type="checkbox" data-check="3"> 我知道 `Trace` 可过滤视线，`Distance` 可通过 `Scoring Factor` 影响远近偏好。</label>
+            <label class="checkitem"><input type="checkbox" data-check="4"> 我知道 `Run EQS Query` 可把结果写入 `Blackboard Key`。</label>
+            <label class="checkitem"><input type="checkbox" data-check="5"> 我知道用 AI Debug 的 `3` 或 `EQS Testing Pawn` 查看 EQS 结果。</label>
+          </div>
+          <div class="btnrow"><button id="resetProgress" class="ghost">重置进度</button></div>
+        </div>
+        <div>
+          <h3>5 题自测</h3>
+          <div id="quiz"></div>
+          <div class="btnrow"><button id="gradeQuiz">评分</button><button id="resetQuiz" class="ghost">重做</button></div>
+          <div id="quizScore" class="note">选择答案后点击评分。</div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="footer-inner">
+      <strong>来源与边界：</strong>本教程依据 Epic Developer Documentation 的 `Environment Query System`、`Environment Query System Overview`、`Environment Query System User Guide`、`Environment Query System Quick Start`、`EQS Node Reference: Generators / Tests / Contexts`、`Behavior Tree Run EQS Query` 相关内容，以及本地 `UE5-main` / `UE5.6` 知识库检索摘要整理。交互实验为教学模型，用于建立心智模型，不替代项目内真实 Profiling 与版本文档核对。
+    </div>
+  </footer>
+
+  <script>
+    const STORE_KEY = 'tut_unreal_eqs_intro_v1';
+    const state = JSON.parse(localStorage.getItem(STORE_KEY) || '{"checks":{},"quiz":{}}');
+    const save = () => localStorage.setItem(STORE_KEY, JSON.stringify(state));
+
+    const mapInfo = {
+      bt: ['Behavior Tree', '`Behavior Tree` 负责决定何时需要查询环境。它通过 `Run EQS Query` 任务节点触发查询，并使用结果继续移动、面向目标或攻击。', 'BT: Run EQS Query\nQuery Template = EQS_FindPlayer'],
+      run: ['Run EQS Query', '任务节点运行指定的 `Environment Query` 资源。常见属性包括 `Query Template`、`Run Mode`、`Blackboard Key`、`Query Config`。', 'Run Mode = Single Best Item\nBlackboard Key = MoveToLocation'],
+      asset: ['EQS Query Asset', '查询资源包含 `Root`、`Generator` 和挂在 Generator 下的 Tests。官方用户指南中从内容浏览器的 Artificial Intelligence 创建。', 'Root -> Points: Grid -> Trace + Distance'],
+      gen: ['Generator', '`Generator` 生成要测试和加权的位置或 Actor，统称 `Item`。示例：`Points: Grid`、`Actors of Class`、`Current Location`。', 'Points: Grid\nGridHalfSize = 800\nSpace Between = 150'],
+      test: ['Tests', '`Test` 对 Item 过滤或计分。`Filter Only` 会移除不合格项；`Score Only` 会给候选项加权。过滤先于计分以减少成本。', 'Trace: Filter Only\nDistance: Score Only, Factor=-1'],
+      bb: ['Blackboard', '查询结果通常写入黑板键。位置结果可写入 `Vector`，Actor 结果可写入 `Object`，供 `Move To` 或其他任务使用。', 'MoveToLocation: Vector\nTargetActor: Object'],
+      ctx: ['Context', '`Context` 是测试和生成器的参考系。`Querier` 表示当前执行查询的 AI；也可创建 `EnvQueryContext_BlueprintBase` 返回玩家。', 'EQC_PlayerContext\nProvide Single Actor = Get Player Character'],
+      item: ['Item', '`Item` 是候选位置或 Actor。使用 `EQSTestingPawn` 或 AI Debug 时，常能看到球体、分数和 Winner。', 'Item = FVector or AActor']
+    };
+    document.querySelectorAll('.node').forEach(n => {
+      const activate = () => {
+        document.querySelectorAll('.node').forEach(x => x.classList.remove('active'));
+        n.classList.add('active');
+        const [title, body, code] = mapInfo[n.dataset.id];
+        document.getElementById('mapDetails').innerHTML = `<h3>${title}</h3><p>${body}</p><pre>${code}</pre>`;
+      };
+      n.addEventListener('click', activate);
+      n.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') activate(); });
+    });
+
+    const steps = [
+      {from:[100,90], to:[315,90], msg:'Run EQS Query', title:'行为树决定：需要一个位置', desc:'当 AI 进入战斗分支但没有合适视线时，行为树执行 `Run EQS Query`。', code:'BT: Run EQS Query\nQuery Template = EQS_FindPlayer'},
+      {from:[315,90], to:[315,160], msg:'读取 Query Asset', title:'进入 EQS 查询资源', desc:'查询资源里连接了 `Root -> Points: Grid`，并在生成器下挂着 `Trace` 与 `Distance` 测试。', code:'EQS_FindPlayer\nRoot -> Points: Grid'},
+      {from:[315,160], to:[315,240], msg:'生成候选点', title:'Generator 生成候选 Item', desc:'`Points: Grid` 围绕 Querier 生成一组位置。官方示例设置 `GridHalfSize=800`、`Space Between=150.0`。', code:'Generator = Points: Grid\nGenerate Around = Querier'},
+      {from:[315,240], to:[530,120], msg:'Trace Filter', title:'Trace 过滤不可见点', desc:'`Trace` 测试使用 `EQC_PlayerContext` 作为玩家参考，过滤掉无法看见玩家的点。', code:'Trace\nTest Purpose = Filter Only\nContext = EQC_PlayerContext'},
+      {from:[530,120], to:[530,240], msg:'Distance Score', title:'Distance 给剩余点计分', desc:'`Distance` 测试对有效点计分。快速入门中 `Scoring Factor=-1.0` 用于偏向更近的有效点。', code:'Distance\nTest Purpose = Score Only\nScoring Factor = -1.0'},
+      {from:[530,240], to:[745,160], msg:'Best Item', title:'返回最佳 Item', desc:'根据运行模式，EQS 返回最高分项、前 5% 或 25% 中随机项，或所有匹配项。', code:'Run Mode = Single Best Item'},
+      {from:[745,160], to:[745,260], msg:'Write Blackboard', title:'写入 Blackboard 并移动', desc:'结果写入 `MoveToLocation`，随后 `Move To` 使用这个位置，AI 再面向 `TargetActor`。', code:'Blackboard Key = MoveToLocation\nMove To -> Rotate to face TargetActor'}
+    ];
+    let stepIndex = 0, timer = null;
+    function renderStep() {
+      const s = steps[stepIndex];
+      const line = document.getElementById('flowLine');
+      line.setAttribute('x1', s.from[0]); line.setAttribute('y1', s.from[1]); line.setAttribute('x2', s.to[0]); line.setAttribute('y2', s.to[1]);
+      const dot = document.getElementById('flowDot'); dot.setAttribute('cx', s.to[0]); dot.setAttribute('cy', s.to[1]);
+      document.getElementById('flowMsg').textContent = s.msg;
+      document.getElementById('stepCounter').textContent = `步骤 ${stepIndex + 1} / ${steps.length}`;
+      document.getElementById('stepTitle').textContent = s.title;
+      document.getElementById('stepDesc').textContent = s.desc;
+      document.getElementById('stepCode').textContent = s.code;
+    }
+    document.getElementById('nextStep').onclick = () => { stepIndex = (stepIndex + 1) % steps.length; renderStep(); };
+    document.getElementById('prevStep').onclick = () => { stepIndex = (stepIndex - 1 + steps.length) % steps.length; renderStep(); };
+    document.getElementById('resetStep').onclick = () => { stepIndex = 0; clearInterval(timer); timer = null; renderStep(); };
+    document.getElementById('playStep').onclick = () => {
+      if (timer) { clearInterval(timer); timer = null; return; }
+      timer = setInterval(() => { stepIndex = (stepIndex + 1) % steps.length; renderStep(); }, 1600);
+    };
+    window.addEventListener('keydown', e => { if (e.key === 'ArrowRight') document.getElementById('nextStep').click(); if (e.key === 'ArrowLeft') document.getElementById('prevStep').click(); });
+    renderStep();
+
+    document.querySelectorAll('.tab').forEach(btn => btn.addEventListener('click', () => {
+      document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+    }));
+
+    const candidates = [
+      {id:'A', los:true, dist:320}, {id:'B', los:false, dist:190}, {id:'C', los:true, dist:760},
+      {id:'D', los:true, dist:520}, {id:'E', los:false, dist:880}, {id:'F', los:true, dist:240},
+      {id:'G', los:true, dist:640}, {id:'H', los:false, dist:410}, {id:'I', los:true, dist:450}
+    ];
+    function renderLab() {
+      const filter = document.getElementById('traceFilter').value === 'on';
+      const factor = Number(document.getElementById('scoreFactor').value);
+      const mode = document.getElementById('runMode').value;
+      const pool = candidates.filter(c => !filter || c.los);
+      const distances = pool.map(c => c.dist);
+      const min = Math.min(...distances), max = Math.max(...distances);
+      pool.forEach(c => {
+        const norm = max === min ? 1 : (c.dist - min) / (max - min);
+        c.score = factor < 0 ? 1 - norm : norm;
+      });
+      const sorted = [...pool].sort((a,b) => b.score - a.score);
+      let winners = [];
+      if (mode === 'all') winners = pool;
+      else if (mode === 'top25') {
+        const cut = Math.max(1, Math.ceil(sorted.length * .25));
+        const top = sorted.slice(0, cut);
+        winners = [top[Math.floor(Math.random() * top.length)]];
+      } else winners = sorted.slice(0,1);
+      const grid = document.getElementById('candidateGrid');
+      grid.innerHTML = candidates.map(c => {
+        const inPool = pool.includes(c), win = winners.includes(c);
+        const score = inPool ? Math.round(c.score * 100) : 0;
+        return `<div class="candidate ${inPool ? '' : 'filtered'} ${win ? 'winner' : ''}"><strong>点 ${c.id}</strong>${win ? ' · Winner' : ''}<br>视线：${c.los ? '可见' : '不可见'}<br>距离玩家：${c.dist}<div class="scorebar"><span style="width:${score}%"></span></div><small>Score ${score}</small></div>`;
+      }).join('');
+      const result = document.getElementById('labResult');
+      if (!pool.length) result.textContent = '所有点都被过滤，查询没有匹配结果。';
+      else if (mode === 'all') result.textContent = `All Matching：返回 ${pool.length} 个通过过滤的点。`;
+      else result.textContent = `当前返回：${winners.map(w => '点 ' + w.id).join(', ')}。${factor < 0 ? '更近的有效点更有优势。' : '更远的有效点更有优势。'}`;
+    }
+    ['traceFilter','scoreFactor','runMode'].forEach(id => document.getElementById(id).addEventListener('change', renderLab));
+    document.getElementById('reroll').onclick = renderLab;
+    renderLab();
+
+    const decisions = {
+      noasset: ['创建不了 Environment Query', '先检查：`Project Settings > Plugins` 是否启用了 `Environment Query Editor`。', '启用后，从 `Artificial Intelligence` 分类创建 `Environment Query`。'],
+      noresult: ['查询没有结果', '先检查：`Trace`、`Pathfinding` 等过滤测试是否把所有 Item 都剔除了；再检查 `Blackboard Key` 类型是否匹配结果类型。', '用 AI Debug 的 EQS 面板或 `EQS Testing Pawn` 看球体、分数和 Winner。'],
+      badmove: ['AI 跑向奇怪位置', '先检查：`Distance` 的 `Scoring Factor`。官方快速入门说明保留 `1.0` 会偏向最远点，可能导致 AI 为到达远点而跑过玩家。', '按目标调整正负号，并限制网格范围、点间距和可达性测试。'],
+      nodebug: ['看不到调试球体', '先检查：是否使用了 `EQS Testing Pawn` 并设置 `Query Template`，或运行时是否打开 AI Debug。', "运行时按 `'`，再按 `3` 查看 EQS；必要时用 Visual Logger 记录。"]
+    };
+    document.querySelectorAll('.decision-card').forEach(card => card.addEventListener('click', () => {
+      document.querySelectorAll('.decision-card').forEach(c => c.classList.remove('active'));
+      card.classList.add('active');
+      const d = decisions[card.dataset.decision];
+      document.getElementById('decisionDetail').innerHTML = `<h3>${d[0]}</h3><p><strong>先检查：</strong>${d[1]}</p><p><strong>下一步：</strong>${d[2]}</p>`;
+    }));
+
+    function updateProgress() {
+      const total = document.querySelectorAll('#checklist input').length;
+      const done = Object.values(state.checks || {}).filter(Boolean).length;
+      document.getElementById('progressText').textContent = `进度 ${Math.round(done / total * 100)}%`;
+    }
+    document.querySelectorAll('#checklist input').forEach(input => {
+      input.checked = !!state.checks[input.dataset.check];
+      input.addEventListener('change', () => { state.checks[input.dataset.check] = input.checked; save(); updateProgress(); });
+    });
+    document.getElementById('resetProgress').onclick = () => { state.checks = {}; save(); document.querySelectorAll('#checklist input').forEach(i => i.checked = false); updateProgress(); };
+    updateProgress();
+
+    const quizData = [
+      {q:'`Generator` 的主要职责是什么？', a:['决定行为树分支','生成候选位置或 Actor','把结果写入黑板','播放调试球体'], ok:1, exp:'官方节点参考说明 Generator 产生将被测试和加权的位置或 Actor，即 Item。'},
+      {q:'`Context` 在 EQS 中更接近什么？', a:['参考框架','最终答案','动画状态机','网络同步通道'], ok:0, exp:'Context 为 Tests 或 Generators 提供参考框架，例如 Querier 或玩家。'},
+      {q:'官方快速入门里 `Trace` 测试的用途是什么？', a:['Score Only，偏向最近点','Filter Only，过滤不能看见玩家的点','创建黑板键','生成网格'], ok:1, exp:'示例把 Trace 设置为 Filter Only，并使用玩家 Context 判断视线。'},
+      {q:'`Run EQS Query` 常把结果写到哪里？', a:['Material Parameter','Blackboard Key','GameMode','Niagara Emitter'], ok:1, exp:'行为树任务节点运行查询后，结果可写入 Blackboard Key，供 Move To 等任务使用。'},
+      {q:'如果 `Distance Scoring Factor` 保留 `1.0`，快速入门提示可能出现什么？', a:['偏向更远点，AI 可能跑过玩家','所有点都必然被过滤','EQS 插件自动禁用','Context 不能返回 Actor'], ok:0, exp:'官方快速入门说明 `1.0` 会返回离玩家最远的点，可能导致 AI 为到达远点而跑过玩家。'}
+    ];
+    function renderQuiz() {
+      document.getElementById('quiz').innerHTML = quizData.map((item, i) => `<div class="quiz-card" data-q="${i}"><strong>${i+1}. ${item.q}</strong><div class="quiz-options">${item.a.map((x,j) => `<label><input type="radio" name="q${i}" value="${j}"> ${x}</label>`).join('')}</div><div class="quiz-explain" id="exp${i}"></div></div>`).join('');
+      Object.entries(state.quiz || {}).forEach(([i,v]) => { const el = document.querySelector(`input[name="q${i}"][value="${v}"]`); if (el) el.checked = true; });
+      document.querySelectorAll('#quiz input').forEach(r => r.addEventListener('change', () => { state.quiz[r.name.slice(1)] = r.value; save(); }));
+    }
+    document.getElementById('gradeQuiz').onclick = () => {
+      let score = 0;
+      quizData.forEach((item, i) => {
+        const picked = document.querySelector(`input[name="q${i}"]:checked`);
+        const labels = document.querySelectorAll(`.quiz-card[data-q="${i}"] label`);
+        labels.forEach((lab, j) => { lab.classList.remove('correct','wrong'); if (j === item.ok) lab.classList.add('correct'); });
+        if (picked) {
+          if (Number(picked.value) === item.ok) score++; else labels[Number(picked.value)].classList.add('wrong');
+        }
+        document.getElementById('exp' + i).textContent = item.exp;
+      });
+      document.getElementById('quizScore').textContent = `得分：${score} / ${quizData.length}。${score === quizData.length ? '你已经掌握最小闭环。' : '回到上面的概念图和流程动画再看一遍。'}`;
+    };
+    document.getElementById('resetQuiz').onclick = () => { state.quiz = {}; save(); renderQuiz(); document.getElementById('quizScore').textContent = '选择答案后点击评分。'; };
+    renderQuiz();
+  </script>
+</body>
+</html>

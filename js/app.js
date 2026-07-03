@@ -148,7 +148,7 @@
       const catLabel = cat ? cat.label : s.category;
       const isSelected = currentSnippet && currentSnippet.id === s.id ? ' selected' : '';
 
-      const sourceBadge = s.source === 'wiki' ? '<span class="snippet-card-source">Wiki</span>' : '';
+      const sourceBadge = getSourceBadge(s);
 
       return `
         <div class="snippet-card${isSelected}" data-id="${s.id}">
@@ -166,6 +166,12 @@
     }).join('');
   }
 
+  function getSourceBadge(snippet) {
+    if (snippet.source === 'wiki') return '<span class="snippet-card-source">Wiki</span>';
+    if (snippet.source === 'raw-demo') return '<span class="snippet-card-source demo">Demo</span>';
+    return '';
+  }
+
   // === 选中片段 ===
   async function selectSnippet(id) {
     const snippet = KnowledgeDB.getById(id);
@@ -181,9 +187,13 @@
     // 更新详情头部
     const cat = CategoryEngine.getCategory(snippet.category);
     const isWiki = snippet.source === 'wiki';
+    const isInteractiveDemo = snippet.source === 'raw-demo' || snippet.contentType === 'interactive-demo';
+    const fileUrl = getSnippetFileUrl(snippet);
     const actionHtml = isWiki && snippet.file
-      ? `<a href="${snippet.file}" class="btn btn-sm" target="_blank">&#x1F517; 打开 Markdown</a>`
-      : `<a href="manage.html?id=${snippet.id}" class="btn btn-sm">&#x270F; 编辑</a>`;
+      ? `<a href="${safeUrl(fileUrl)}" class="btn btn-sm" target="_blank">&#x1F517; 打开 Markdown</a>`
+      : isInteractiveDemo && fileUrl
+        ? `<a href="${safeUrl(fileUrl)}" class="btn btn-sm" target="_blank">&#x1F517; 打开 Demo</a>`
+        : `<a href="manage.html?id=${snippet.id}" class="btn btn-sm">&#x270F; 编辑</a>`;
 
     detailHeader.innerHTML = `
       <div class="detail-header-info">
@@ -203,9 +213,9 @@
     liveContent = null;
     let fetchOk = false;
 
-    if (snippet.file && !isWiki) {
+    if (snippet.file && !isWiki && !isInteractiveDemo) {
       try {
-        const res = await fetch(`knowledge/${snippet.file}`);
+        const res = await fetch(fileUrl);
         if (res.ok) {
           liveContent = await res.text();
           fetchOk = true;
@@ -230,7 +240,13 @@
       extractAndLoadChart(liveContent);
     }
 
-    if (isWiki || snippet.contentType === 'markdown') {
+    if (isInteractiveDemo) {
+      htmlView.innerHTML = renderInteractiveDemo(snippet);
+      canvasContainer.style.display = 'none';
+      htmlView.style.display = 'block';
+      viewTabs.style.display = 'none';
+      CanvasViewer.loadChart(null);
+    } else if (isWiki || snippet.contentType === 'markdown') {
       htmlView.innerHTML = renderMarkdown(snippet.content || '', snippet.file || '');
       canvasContainer.style.display = 'none';
       htmlView.style.display = 'block';
@@ -242,9 +258,9 @@
       if (snippet.file) {
         htmlView.innerHTML = `
           <div style="padding:16px 20px;">
-            <p style="margin-bottom:12px;color:var(--text-secondary);font-size:13px;">&#x1F4C4; 知识片段文件：<code style="color:var(--success);">knowledge/${snippet.file}</code></p>
-            <a href="knowledge/${snippet.file}" class="btn" style="display:inline-flex;margin-bottom:12px;" target="_blank">&#x1F517; 在新标签页中打开</a>
-            <iframe src="knowledge/${snippet.file}" style="width:100%;height:calc(100vh - 200px);border:1px solid #22305c;border-radius:8px;background:#fff;" sandbox="allow-scripts allow-same-origin"></iframe>
+            <p style="margin-bottom:12px;color:var(--text-secondary);font-size:13px;">&#x1F4C4; 知识片段文件：<code style="color:var(--success);">${escapeHtml(fileUrl)}</code></p>
+            <a href="${safeUrl(fileUrl)}" class="btn" style="display:inline-flex;margin-bottom:12px;" target="_blank">&#x1F517; 在新标签页中打开</a>
+            <iframe src="${safeUrl(fileUrl)}" style="width:100%;height:calc(100vh - 200px);border:1px solid #22305c;border-radius:8px;background:#fff;" sandbox="allow-scripts allow-same-origin"></iframe>
           </div>`;
       } else {
         htmlView.innerHTML = `<div class="empty-state"><div class="empty-state-icon">&#x1F4C4;</div><div class="empty-state-text">该片段仅有图表数据</div></div>`;
@@ -258,9 +274,9 @@
       // file:// 环境回退：使用 iframe 加载 HTML 文件
       htmlView.innerHTML = `
         <div style="padding:20px;">
-          <p><strong>&#x1F4C4; 知识片段文件：</strong><code>knowledge/${snippet.file}</code></p>
-          <p><a href="knowledge/${snippet.file}" class="btn" style="display:inline-flex;margin-top:8px;" target="_blank">&#x1F517; 在新标签页中打开</a></p>
-          <iframe src="knowledge/${snippet.file}" style="width:100%;height:70vh;border:1px solid #22305c;border-radius:8px;margin-top:12px;background:#fff;" sandbox="allow-scripts allow-same-origin"></iframe>
+          <p><strong>&#x1F4C4; 知识片段文件：</strong><code>${escapeHtml(fileUrl)}</code></p>
+          <p><a href="${safeUrl(fileUrl)}" class="btn" style="display:inline-flex;margin-top:8px;" target="_blank">&#x1F517; 在新标签页中打开</a></p>
+          <iframe src="${safeUrl(fileUrl)}" style="width:100%;height:70vh;border:1px solid #22305c;border-radius:8px;margin-top:12px;background:#fff;" sandbox="allow-scripts allow-same-origin"></iframe>
         </div>`;
       canvasContainer.style.display = 'none';
       htmlView.style.display = 'block';
@@ -270,7 +286,7 @@
     }
 
     // 更新视图
-    if (isWiki || snippet.contentType === 'markdown') {
+    if (isWiki || snippet.contentType === 'markdown' || isInteractiveDemo) {
       viewTabs.style.display = 'none';
       canvasContainer.style.display = 'none';
       htmlView.style.display = 'block';
@@ -334,6 +350,35 @@
       ? `<div class="wiki-file-path">Wiki 源文件：<code>${escapeHtml(filePath)}</code></div>`
       : '';
     return `<article class="markdown-body">${fileHtml}${markdownBlocksToHtml(body)}</article>`;
+  }
+
+  function renderInteractiveDemo(snippet) {
+    const fileUrl = getSnippetFileUrl(snippet);
+    const sourceSummary = snippet.sourceSummary
+      ? `<a href="#" class="btn btn-sm" data-wiki-link="${escapeHtml(snippet.sourceSummary)}">&#x1F4DD; 来源摘要</a>`
+      : '';
+
+    return `
+      <div class="demo-embed-view">
+        <div class="demo-embed-toolbar">
+          <div>
+            <div class="demo-embed-title">可交互 Demo</div>
+            <div class="demo-embed-path"><code>${escapeHtml(fileUrl)}</code></div>
+          </div>
+          <div class="demo-embed-actions">
+            ${sourceSummary}
+            <a href="${safeUrl(fileUrl)}" class="btn btn-sm" target="_blank">&#x1F517; 新标签页打开</a>
+          </div>
+        </div>
+        <iframe class="demo-embed-frame" src="${safeUrl(fileUrl)}" sandbox="allow-scripts allow-same-origin allow-forms"></iframe>
+      </div>`;
+  }
+
+  function getSnippetFileUrl(snippet) {
+    if (!snippet || !snippet.file) return '';
+    if (snippet.source === 'raw-demo' || snippet.contentType === 'interactive-demo') return snippet.file;
+    if (snippet.source === 'wiki') return snippet.file;
+    return `knowledge/${snippet.file}`;
   }
 
   function stripFrontmatter(markdown) {

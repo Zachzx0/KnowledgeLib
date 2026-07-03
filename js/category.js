@@ -109,6 +109,11 @@ const CategoryEngine = (() => {
       icon: '&#x1F5C2;&#xFE0F;',
       keywords: ['wiki', 'index', '索引'],
     },
+    'interactive-demo': {
+      label: '交互 Demo',
+      icon: '&#x1F9EA;',
+      keywords: ['demo', 'interactive', '可交互', '演示', '学习'],
+    },
     'wiki-overview': {
       label: 'Wiki 综述',
       icon: '&#x1F4DA;',

@@ -41,7 +41,7 @@ const KnowledgeDB = (() => {
         // 版本匹配则使用缓存
         if (embeddedVersion && cachedVersion === embeddedVersion) {
           snippets = parsed;
-          mergeRuntimeWikiSnippets();
+          mergeRuntimeSnippets();
           loaded = true;
           return snippets;
         }
@@ -49,7 +49,7 @@ const KnowledgeDB = (() => {
         const fetchVersion = await fetchIndexVersion();
         if (fetchVersion && cachedVersion === fetchVersion) {
           snippets = parsed;
-          mergeRuntimeWikiSnippets();
+          mergeRuntimeSnippets();
           loaded = true;
           return snippets;
         }
@@ -60,24 +60,36 @@ const KnowledgeDB = (() => {
 
     // 版本不匹配或无缓存，重新加载
     await reloadFromIndex();
-    mergeRuntimeWikiSnippets();
+    mergeRuntimeSnippets();
 
     return snippets;
   }
 
-  function mergeRuntimeWikiSnippets() {
-    const runtimeData = window.VIBE_WIKI_DATA;
-    const wikiSnippets = runtimeData && Array.isArray(runtimeData.snippets) ? runtimeData.snippets : [];
-    if (!wikiSnippets.length) return;
-
-    const wikiIds = new Set(wikiSnippets.map(s => s.id));
-    const nonWiki = snippets.filter(s => s.source !== 'wiki' && !wikiIds.has(s.id));
-    snippets = [...nonWiki, ...wikiSnippets.map(s => ({
+  function mergeRuntimeSnippets() {
+    mergeRuntimeSource('wiki', window.VIBE_WIKI_DATA, (s) => ({
       ...s,
       tags: Array.isArray(s.tags) ? s.tags : [],
       source: 'wiki',
       contentType: s.contentType || 'markdown',
-    }))];
+    }));
+
+    mergeRuntimeSource('raw-demo', window.VIBE_RAW_DEMO_DATA, (s) => ({
+      ...s,
+      tags: Array.isArray(s.tags) ? s.tags : [],
+      category: s.category || 'interactive-demo',
+      source: 'raw-demo',
+      contentType: s.contentType || 'interactive-demo',
+      hasDiagram: false,
+    }));
+  }
+
+  function mergeRuntimeSource(source, runtimeData, normalize) {
+    const runtimeSnippets = runtimeData && Array.isArray(runtimeData.snippets) ? runtimeData.snippets : [];
+    if (!runtimeSnippets.length) return;
+
+    const runtimeIds = new Set(runtimeSnippets.map(s => s.id));
+    const rest = snippets.filter(s => s.source !== source && !runtimeIds.has(s.id));
+    snippets = [...rest, ...runtimeSnippets.map(normalize)];
   }
 
   async function fetchIndexVersion() {

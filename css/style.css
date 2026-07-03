@@ -447,6 +447,12 @@ html, body {
   margin-top: 2px;
 }
 
+.snippet-card-source.demo {
+  color: var(--warning);
+  background: rgba(255, 208, 138, 0.12);
+  border-color: rgba(255, 208, 138, 0.38);
+}
+
 /* Detail / Canvas panel */
 .detail-panel {
   flex: 1;
@@ -543,6 +549,53 @@ html, body {
 .detail-html-view .wiki-link { color: var(--success); border-bottom: 1px dashed rgba(90, 204, 138, 0.55); }
 .detail-html-view .wiki-link:hover { color: var(--accent-light); text-decoration: none; border-bottom-color: var(--accent-light); }
 .detail-html-view img { max-width: 100%; border-radius: var(--radius); border: 1px solid var(--border); }
+
+.demo-embed-view {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.demo-embed-toolbar {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 14px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+
+.demo-embed-title {
+  color: var(--accent-light);
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.demo-embed-path {
+  margin-top: 4px;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.demo-embed-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.demo-embed-frame {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: #fff;
+}
 
 /* Detail header */
 .detail-header {
